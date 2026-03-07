@@ -8,12 +8,13 @@ import { FileText, Table, Download } from 'lucide-react';
 
 interface ExportGeneratorProps {
   project: ProjectState;
+  mapboxToken?: string;
 }
 
-const ExportGenerator = ({ project }: ExportGeneratorProps) => {
+const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
   const generatePDFSitePlan = useCallback(() => {
-    generateEngineeringSitePlan(project);
-  }, [project]);
+    generateEngineeringSitePlan(project, mapboxToken);
+  }, [project, mapboxToken]);
 
   const generatePDFSummary = useCallback(() => {
     const doc = new jsPDF('portrait', 'mm', 'a4');
