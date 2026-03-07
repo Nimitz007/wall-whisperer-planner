@@ -634,7 +634,7 @@ export function generateEngineeringSitePlan(project: ProjectState) {
 
   // ─── PAGE 2: WALL ELEVATIONS ───────────────────────────
   if (project.walls.length > 0) {
-    doc.addPage('a3', 'landscape');
+    doc.addPage([420, 297], 'landscape');
     drawBorder(doc, w, h);
 
     doc.setFontSize(10);
