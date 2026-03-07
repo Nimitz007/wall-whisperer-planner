@@ -617,7 +617,7 @@ export function generateEngineeringSitePlan(project: ProjectState) {
   }
 
   // Title block
-  drawTitleBlock(doc, w, h);
+  drawTitleBlock(doc, w, h, project);
 
   // Disclaimer bar at bottom
   doc.setFillColor(250, 250, 250);
@@ -676,7 +676,7 @@ export function generateEngineeringSitePlan(project: ProjectState) {
       elevY += Math.max(usedH, elevMaxH) + 5;
     });
 
-    drawTitleBlock(doc, w, h);
+    drawTitleBlock(doc, w, h, project);
 
     // Disclaimer
     doc.setFillColor(250, 250, 250);
