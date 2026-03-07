@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import jsPDF from 'jspdf';
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
+import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
 import { Button } from '@/components/ui/button';
 import { FileText, Table, Download } from 'lucide-react';
 
@@ -11,87 +12,7 @@ interface ExportGeneratorProps {
 
 const ExportGenerator = ({ project }: ExportGeneratorProps) => {
   const generatePDFSitePlan = useCallback(() => {
-    const doc = new jsPDF('landscape', 'mm', 'a3');
-    const w = doc.internal.pageSize.getWidth();
-    const h = doc.internal.pageSize.getHeight();
-
-    // Title block
-    doc.setFillColor(45, 55, 72);
-    doc.rect(0, 0, w, 28, 'F');
-    doc.setTextColor(255);
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text('CONCEPT RETAINING WALL SITE PLAN', 15, 12);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Simple Engineers — Preliminary Planning Tool', 15, 20);
-    doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, w - 80, 12);
-    doc.text(`Ref: ${project.details.projectReference || 'N/A'}`, w - 80, 20);
-
-    // Project details
-    let y = 40;
-    doc.setTextColor(30);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Project Details', 15, y);
-    y += 8;
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Address: ${project.details.address || 'N/A'}`, 15, y); y += 6;
-    doc.text(`Client: ${project.details.clientName || 'N/A'}`, 15, y); y += 6;
-    doc.text(`Email: ${project.details.clientEmail || 'N/A'}`, 15, y); y += 6;
-    doc.text(`Phone: ${project.details.clientPhone || 'N/A'}`, 15, y); y += 12;
-
-    // Wall schedule
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Wall Schedule', 15, y);
-    y += 8;
-
-    doc.setFontSize(8);
-    // Header
-    doc.setFillColor(240, 240, 240);
-    doc.rect(15, y - 4, w - 30, 7, 'F');
-    doc.setFont('helvetica', 'bold');
-    const cols = [15, 45, 120, 165, 195, 225, 265, 310];
-    doc.text('Name', cols[0], y);
-    doc.text('Type', cols[1], y);
-    doc.text('Length', cols[2], y);
-    doc.text('Avg Ht', cols[3], y);
-    doc.text('Max Ht', cols[4], y);
-    doc.text('Surcharge', cols[5], y);
-    doc.text('Fence', cols[6], y);
-    doc.text('Drainage', cols[7], y);
-    y += 7;
-
-    doc.setFont('helvetica', 'normal');
-    project.walls.forEach(wall => {
-      doc.text(wall.name, cols[0], y);
-      doc.text(WALL_TYPE_LABELS[wall.wallType], cols[1], y);
-      doc.text(`${wall.length.toFixed(1)}m`, cols[2], y);
-      doc.text(`${wall.averageHeight}m`, cols[3], y);
-      doc.text(`${wall.maxHeight}m`, cols[4], y);
-      doc.text(wall.hasSurcharge ? 'Yes' : 'No', cols[5], y);
-      doc.text(wall.hasFenceAbove ? 'Yes' : 'No', cols[6], y);
-      doc.text(wall.hasDrainageRequired ? 'Yes' : 'No', cols[7], y);
-      y += 6;
-    });
-
-    y += 6;
-    doc.text(`Total Wall Length: ${getTotalWallLength(project.walls).toFixed(1)}m`, 15, y);
-
-    // Disclaimer
-    y = h - 25;
-    doc.setDrawColor(200);
-    doc.line(15, y, w - 15, y);
-    y += 6;
-    doc.setFontSize(7);
-    doc.setTextColor(120);
-    doc.text('DISCLAIMER: This is a preliminary concept planning document only. Not for construction or council approval.', 15, y);
-    y += 4;
-    doc.text('Measurements are approximate. Engineering certification is required before construction. © Simple Engineers', 15, y);
-
-    doc.save(`concept-site-plan-${project.details.projectReference || 'export'}.pdf`);
+    generateEngineeringSitePlan(project);
   }, [project]);
 
   const generatePDFSummary = useCallback(() => {
