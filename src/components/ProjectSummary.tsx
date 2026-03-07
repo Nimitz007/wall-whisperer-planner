@@ -1,7 +1,7 @@
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
 import { Separator } from '@/components/ui/separator';
-import { MapPin, Ruler, Layers, Package, AlertTriangle } from 'lucide-react';
+import { MapPin, Ruler, Package, AlertTriangle } from 'lucide-react';
 
 interface ProjectSummaryProps {
   project: ProjectState;
