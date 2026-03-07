@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Ruler, Building2, Fence } from 'lucide-react';
+import { Ruler, Building2, LandPlot } from 'lucide-react';
 
 interface WallEditorPanelProps {
   wall: WallSegment;
@@ -86,7 +86,7 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
         </div>
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5 text-sm text-foreground">
-            <Fence className="h-3.5 w-3.5" /> Distance to boundary (m)
+            <LandPlot className="h-3.5 w-3.5" /> Distance to boundary (m)
           </Label>
           <Input
             type="number"
