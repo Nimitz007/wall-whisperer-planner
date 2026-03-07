@@ -1,695 +1,701 @@
 import jsPDF from 'jspdf';
-import { ProjectState, WALL_TYPE_LABELS, WallSegment } from '@/lib/types';
-import { getTotalWallLength } from '@/lib/wallCalculations';
+import { ProjectState, WALL_TYPE_LABELS, WallSegment, WallType } from '@/lib/types';
+import { getTotalWallLength, calculateDistance } from '@/lib/wallCalculations';
 
-// Engineering drawing colors
-const COLORS = {
-  border: [30, 30, 30] as [number, number, number],
-  gridLight: [210, 210, 210] as [number, number, number],
-  gridDark: [170, 170, 170] as [number, number, number],
-  wall: [180, 40, 40] as [number, number, number],
-  wallFill: [255, 200, 200] as [number, number, number],
-  dimension: [40, 40, 180] as [number, number, number],
-  text: [30, 30, 30] as [number, number, number],
-  titleBlock: [45, 55, 72] as [number, number, number],
-  ground: [140, 120, 80] as [number, number, number],
-  concrete: [180, 180, 180] as [number, number, number],
-  hatch: [100, 100, 100] as [number, number, number],
-  green: [60, 140, 60] as [number, number, number],
+// ─── COLOUR PALETTE ────────────────────────────────────────
+type RGB = [number, number, number];
+const C = {
+  border:     [30, 30, 30]      as RGB,
+  gridLight:  [200, 200, 200]   as RGB,
+  wall:       [190, 30, 30]     as RGB,
+  dimension:  [20, 60, 180]     as RGB,
+  text:       [25, 25, 25]      as RGB,
+  textLight:  [100, 100, 100]   as RGB,
+  titleBg:    [35, 45, 62]      as RGB,
+  soil:       [165, 140, 95]    as RGB,
+  soilFill:   [225, 215, 190]   as RGB,
+  concrete:   [190, 190, 190]   as RGB,
+  concFill:   [230, 230, 230]   as RGB,
+  sleeper:    [160, 130, 90]    as RGB,
+  sleeperFill:[210, 190, 155]   as RGB,
+  timber:     [140, 100, 55]    as RGB,
+  timberFill: [200, 175, 135]   as RGB,
+  masonry:    [150, 150, 150]   as RGB,
+  masonryFill:[215, 215, 215]   as RGB,
+  gabion:     [130, 130, 130]   as RGB,
+  gabionFill: [200, 200, 200]   as RGB,
+  green:      [60, 130, 60]     as RGB,
+  fence:      [70, 70, 70]      as RGB,
+  drainage:   [60, 120, 180]    as RGB,
+  white:      [255, 255, 255]   as RGB,
 };
 
-interface BBox {
-  minLng: number; maxLng: number;
-  minLat: number; maxLat: number;
-}
+// ─── GEOMETRY HELPERS ──────────────────────────────────────
+interface BBox { minLng: number; maxLng: number; minLat: number; maxLat: number; }
+interface DrawArea { x: number; y: number; w: number; h: number; }
 
 function getWallsBBox(walls: WallSegment[]): BBox {
   let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
   walls.forEach(w => w.points.forEach(p => {
-    minLng = Math.min(minLng, p.lng);
-    maxLng = Math.max(maxLng, p.lng);
-    minLat = Math.min(minLat, p.lat);
-    maxLat = Math.max(maxLat, p.lat);
+    minLng = Math.min(minLng, p.lng); maxLng = Math.max(maxLng, p.lng);
+    minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
   }));
-  // Add 20% padding
-  const padLng = Math.max((maxLng - minLng) * 0.3, 0.0003);
-  const padLat = Math.max((maxLat - minLat) * 0.3, 0.0003);
+  const padLng = Math.max((maxLng - minLng) * 0.35, 0.0004);
+  const padLat = Math.max((maxLat - minLat) * 0.35, 0.0004);
+  return { minLng: minLng - padLng, maxLng: maxLng + padLng, minLat: minLat - padLat, maxLat: maxLat + padLat };
+}
+
+function toXY(lng: number, lat: number, bbox: BBox, a: DrawArea) {
   return {
-    minLng: minLng - padLng, maxLng: maxLng + padLng,
-    minLat: minLat - padLat, maxLat: maxLat + padLat,
+    x: a.x + ((lng - bbox.minLng) / (bbox.maxLng - bbox.minLng)) * a.w,
+    y: a.y + a.h - ((lat - bbox.minLat) / (bbox.maxLat - bbox.minLat)) * a.h,
   };
 }
 
-function lngLatToXY(
-  lng: number, lat: number, bbox: BBox,
-  drawArea: { x: number; y: number; w: number; h: number }
-) {
-  const xRatio = (lng - bbox.minLng) / (bbox.maxLng - bbox.minLng);
-  const yRatio = (lat - bbox.minLat) / (bbox.maxLat - bbox.minLat);
-  return {
-    x: drawArea.x + xRatio * drawArea.w,
-    y: drawArea.y + drawArea.h - yRatio * drawArea.h, // flip Y
-  };
+function niceGrid(spanM: number): number {
+  const t = spanM / 6;
+  return [1, 2, 5, 10, 20, 50, 100, 200, 500].reduce((b, c) => Math.abs(c - t) < Math.abs(b - t) ? c : b);
 }
+
+// ─── SATELLITE UNDERLAY ────────────────────────────────────
+async function fetchSatelliteImage(bbox: BBox, widthPx: number, heightPx: number, token: string): Promise<string | null> {
+  try {
+    const cLng = (bbox.minLng + bbox.maxLng) / 2;
+    const cLat = (bbox.minLat + bbox.maxLat) / 2;
+    // Calculate zoom from bbox
+    const latSpan = bbox.maxLat - bbox.minLat;
+    const zoom = Math.min(Math.floor(Math.log2(180 / latSpan)) + 1, 19);
+    const url = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${cLng},${cLat},${zoom},0/${widthPx}x${heightPx}@2x?access_token=${token}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch { return null; }
+}
+
+// ─── DRAWING PRIMITIVES ───────────────────────────────────
 
 function drawBorder(doc: jsPDF, w: number, h: number) {
-  // Outer border
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(1.0);
+  doc.setDrawColor(...C.border); doc.setLineWidth(1.0);
   doc.rect(8, 8, w - 16, h - 16);
-  // Inner border
   doc.setLineWidth(0.3);
   doc.rect(12, 12, w - 24, h - 24);
 }
 
-function drawGrid(
-  doc: jsPDF,
-  drawArea: { x: number; y: number; w: number; h: number },
-  bbox: BBox
-) {
-  // Calculate a nice grid spacing in metres
+function drawGrid(doc: jsPDF, a: DrawArea, bbox: BBox) {
   const latSpanM = (bbox.maxLat - bbox.minLat) * 111320;
-  const gridSpacingM = getGridSpacing(latSpanM);
+  const gs = niceGrid(latSpanM);
   const latPerM = (bbox.maxLat - bbox.minLat) / latSpanM;
   const lngSpanM = (bbox.maxLng - bbox.minLng) * 111320 * Math.cos(((bbox.minLat + bbox.maxLat) / 2) * Math.PI / 180);
   const lngPerM = (bbox.maxLng - bbox.minLng) / lngSpanM;
-
-  doc.setDrawColor(...COLORS.gridLight);
-  doc.setLineWidth(0.15);
-
-  // Horizontal grid lines
-  for (let m = 0; m <= latSpanM; m += gridSpacingM) {
-    const lat = bbox.minLat + m * latPerM;
-    const { y } = lngLatToXY(bbox.minLng, lat, bbox, drawArea);
-    if (y >= drawArea.y && y <= drawArea.y + drawArea.h) {
-      doc.line(drawArea.x, y, drawArea.x + drawArea.w, y);
-    }
+  doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.12);
+  doc.saveGraphicsState(); doc.setGState(new (doc as any).GState({ opacity: 0.35 }));
+  for (let m = 0; m <= latSpanM; m += gs) {
+    const { y } = toXY(bbox.minLng, bbox.minLat + m * latPerM, bbox, a);
+    if (y >= a.y && y <= a.y + a.h) doc.line(a.x, y, a.x + a.w, y);
   }
-
-  // Vertical grid lines
-  for (let m = 0; m <= lngSpanM; m += gridSpacingM) {
-    const lng = bbox.minLng + m * lngPerM;
-    const { x } = lngLatToXY(lng, bbox.minLat, bbox, drawArea);
-    if (x >= drawArea.x && x <= drawArea.x + drawArea.w) {
-      doc.line(x, drawArea.y, x, drawArea.y + drawArea.h);
-    }
+  for (let m = 0; m <= lngSpanM; m += gs) {
+    const { x } = toXY(bbox.minLng + m * lngPerM, bbox.minLat, bbox, a);
+    if (x >= a.x && x <= a.x + a.w) doc.line(x, a.y, x, a.y + a.h);
   }
-
-  return gridSpacingM;
-}
-
-function getGridSpacing(spanM: number): number {
-  const target = spanM / 6;
-  const candidates = [1, 2, 5, 10, 20, 50, 100, 200, 500];
-  return candidates.reduce((best, c) => Math.abs(c - target) < Math.abs(best - target) ? c : best);
+  doc.restoreGraphicsState();
+  return gs;
 }
 
 function drawScaleBar(doc: jsPDF, x: number, y: number, scaleM: number, pixPerM: number) {
-  const barLengthMM = scaleM * pixPerM;
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.5);
-  doc.setFillColor(30, 30, 30);
-
-  // Draw alternating blocks
-  const segments = 4;
-  const segLen = barLengthMM / segments;
-  for (let i = 0; i < segments; i++) {
-    if (i % 2 === 0) {
-      doc.rect(x + i * segLen, y, segLen, 2.5, 'F');
-    } else {
-      doc.rect(x + i * segLen, y, segLen, 2.5, 'S');
-    }
+  const barLen = scaleM * pixPerM;
+  const segs = 4, segL = barLen / segs;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(x - 2, y - 4, barLen + 4, 12, 'F');
+  doc.setDrawColor(...C.border); doc.setLineWidth(0.4);
+  for (let i = 0; i < segs; i++) {
+    if (i % 2 === 0) { doc.setFillColor(30, 30, 30); doc.rect(x + i * segL, y, segL, 2, 'F'); }
+    else { doc.rect(x + i * segL, y, segL, 2, 'S'); }
   }
-
-  doc.setFontSize(6);
-  doc.setTextColor(...COLORS.text);
-  doc.setFont('helvetica', 'normal');
-  doc.text('0', x, y + 6);
-  doc.text(`${scaleM}m`, x + barLengthMM - 2, y + 6);
-  doc.text('SCALE BAR', x, y - 2);
+  doc.setFontSize(5); doc.setTextColor(...C.text); doc.setFont('helvetica', 'normal');
+  doc.text('0', x, y + 5); doc.text(`${scaleM}m`, x + barLen - 3, y + 5);
+  doc.setFontSize(4.5); doc.text('SCALE', x, y - 1);
 }
 
 function drawNorthArrow(doc: jsPDF, cx: number, cy: number) {
-  doc.setFillColor(...COLORS.border);
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.3);
-
-  // Arrow shaft
-  const len = 10;
-  doc.line(cx, cy + len / 2, cx, cy - len / 2);
-  // Arrowhead filled
-  doc.triangle(cx, cy - len / 2, cx - 2.5, cy - len / 2 + 5, cx + 2.5, cy - len / 2 + 5, 'F');
-
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...COLORS.border);
-  doc.text('N', cx - 1.5, cy - len / 2 - 3);
+  // White background circle
+  doc.setFillColor(255, 255, 255); doc.circle(cx, cy, 8, 'F');
+  doc.setDrawColor(...C.border); doc.setLineWidth(0.3); doc.circle(cx, cy, 8, 'S');
+  // Arrow
+  doc.setFillColor(...C.border);
+  doc.triangle(cx, cy - 6, cx - 2.5, cy + 1, cx + 2.5, cy + 1, 'F');
+  doc.setFillColor(255, 255, 255);
+  doc.triangle(cx, cy + 6, cx - 2.5, cy + 1, cx + 2.5, cy + 1, 'F');
+  doc.setDrawColor(...C.border);
+  doc.triangle(cx, cy + 6, cx - 2.5, cy + 1, cx + 2.5, cy + 1, 'S');
+  doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.border);
+  doc.text('N', cx - 1.8, cy - 9);
 }
 
-function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState) {
-  const tbH = 30;
-  const tbY = h - 12 - tbH;
-  const tbX = w - 12 - 120;
-  const tbW = 120;
-
-  doc.setFillColor(...COLORS.titleBlock);
-  doc.rect(tbX, tbY, tbW, 10, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text('SIMPLE ENGINEERS', tbX + 3, tbY + 7);
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Concept Planning Tool', tbX + 55, tbY + 7);
-
-  // Info rows
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.3);
-  doc.setTextColor(...COLORS.text);
-  doc.setFontSize(6);
-
-  const rows = [
-    ['PROJECT:', project.details.address || 'N/A'],
-    ['CLIENT:', project.details.clientName || 'N/A'],
-    ['REF:', project.details.projectReference || 'N/A'],
-    ['DATE:', new Date().toLocaleDateString('en-AU')],
+function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState, sheetTitle: string) {
+  const tbW = 125, tbH = 32;
+  const tbX = w - 12 - tbW, tbY = h - 12 - tbH;
+  // Header bar
+  doc.setFillColor(...C.titleBg); doc.rect(tbX, tbY, tbW, 8, 'F');
+  doc.setTextColor(...C.white); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
+  doc.text('SIMPLE ENGINEERS', tbX + 3, tbY + 5.5);
+  doc.setFontSize(5); doc.setFont('helvetica', 'normal');
+  doc.text('Concept Planning Tool', tbX + 52, tbY + 5.5);
+  // Info grid
+  doc.setDrawColor(...C.border); doc.setLineWidth(0.25);
+  doc.setTextColor(...C.text); doc.setFontSize(5);
+  const rows: [string, string][] = [
+    ['PROJECT', project.details.address || 'N/A'],
+    ['CLIENT', project.details.clientName || 'N/A'],
+    ['REF', project.details.projectReference || 'N/A'],
+    ['DATE', new Date().toLocaleDateString('en-AU')],
+    ['SHEET', sheetTitle],
   ];
-
-  rows.forEach((row, i) => {
-    const ry = tbY + 10 + i * 5;
-    doc.rect(tbX, ry, tbW, 5);
-    doc.setFont('helvetica', 'bold');
-    doc.text(row[0], tbX + 2, ry + 3.5);
-    doc.setFont('helvetica', 'normal');
-    doc.text(row[1], tbX + 22, ry + 3.5);
+  rows.forEach(([label, val], i) => {
+    const ry = tbY + 8 + i * 4.8;
+    doc.rect(tbX, ry, 20, 4.8); doc.rect(tbX + 20, ry, tbW - 20, 4.8);
+    doc.setFont('helvetica', 'bold'); doc.text(label, tbX + 1.5, ry + 3.3);
+    doc.setFont('helvetica', 'normal'); doc.text(val, tbX + 22, ry + 3.3);
   });
-
-  // Drawing title
-  doc.setFontSize(5);
-  doc.setFont('helvetica', 'italic');
-  doc.text('CONCEPT RETAINING WALL SITE PLAN — NOT FOR CONSTRUCTION', tbX + 2, tbY + tbH + 4);
+  doc.setFontSize(4); doc.setFont('helvetica', 'italic'); doc.setTextColor(...C.textLight);
+  doc.text('CONCEPT ONLY — NOT FOR CONSTRUCTION', tbX + 2, tbY + tbH + 3);
 }
 
-function drawWallsOnPlan(
-  doc: jsPDF, walls: WallSegment[], bbox: BBox,
-  drawArea: { x: number; y: number; w: number; h: number }
-) {
-  walls.forEach((wall, wallIdx) => {
-    if (wall.points.length < 2) return;
+function drawDisclaimer(doc: jsPDF, w: number, h: number) {
+  const barW = w - 24 - 130;
+  doc.setFillColor(250, 250, 250); doc.rect(12, h - 17, barW, 5, 'F');
+  doc.setDrawColor(...C.border); doc.setLineWidth(0.15); doc.rect(12, h - 17, barW, 5, 'S');
+  doc.setFontSize(4); doc.setTextColor(...C.textLight);
+  doc.text('DISCLAIMER: Preliminary concept only. Not for construction or council approval. Engineering certification required. © Simple Engineers', 14, h - 13.5);
+}
 
-    // Draw wall line (thick)
-    doc.setDrawColor(...COLORS.wall);
-    doc.setLineWidth(1.2);
+// ─── PLAN VIEW: NODE-TO-NODE DIMENSIONS ───────────────────
+function drawSegmentDimension(doc: jsPDF, x1: number, y1: number, x2: number, y2: number, lengthM: number, offset: number) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 3) return;
+  const nx = (-dy / len) * offset, ny = (dx / len) * offset;
+  doc.setDrawColor(...C.dimension); doc.setLineWidth(0.15);
+  // Extension lines
+  doc.line(x1, y1, x1 + nx, y1 + ny);
+  doc.line(x2, y2, x2 + nx, y2 + ny);
+  // Dim line
+  doc.line(x1 + nx, y1 + ny, x2 + nx, y2 + ny);
+  // Ticks
+  const tdx = dx / len * 1, tdy = dy / len * 1;
+  doc.line(x1 + nx - tdy * 0.6, y1 + ny + tdx * 0.6, x1 + nx + tdy * 0.6, y1 + ny - tdx * 0.6);
+  doc.line(x2 + nx - tdy * 0.6, y2 + ny + tdx * 0.6, x2 + nx + tdy * 0.6, y2 + ny - tdx * 0.6);
+  // Text
+  const mx = (x1 + x2) / 2 + nx, my = (y1 + y2) / 2 + ny;
+  doc.setFillColor(255, 255, 255); doc.rect(mx - 5, my - 2.5, 10, 3.5, 'F');
+  doc.setFontSize(4.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.dimension);
+  doc.text(`${lengthM.toFixed(1)}m`, mx - 4, my);
+}
+
+function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawArea) {
+  walls.forEach(wall => {
+    if (wall.points.length < 2) return;
+    // Thick wall line
+    doc.setDrawColor(...C.wall); doc.setLineWidth(1.4);
     for (let i = 0; i < wall.points.length - 1; i++) {
-      const p1 = lngLatToXY(wall.points[i].lng, wall.points[i].lat, bbox, drawArea);
-      const p2 = lngLatToXY(wall.points[i + 1].lng, wall.points[i + 1].lat, bbox, drawArea);
+      const p1 = toXY(wall.points[i].lng, wall.points[i].lat, bbox, a);
+      const p2 = toXY(wall.points[i + 1].lng, wall.points[i + 1].lat, bbox, a);
       doc.line(p1.x, p1.y, p2.x, p2.y);
     }
-
-    // Draw hatch marks on retained side (short perpendicular ticks)
-    doc.setLineWidth(0.3);
+    // Hatch ticks on retained side
+    doc.setLineWidth(0.25);
     for (let i = 0; i < wall.points.length - 1; i++) {
-      const p1 = lngLatToXY(wall.points[i].lng, wall.points[i].lat, bbox, drawArea);
-      const p2 = lngLatToXY(wall.points[i + 1].lng, wall.points[i + 1].lat, bbox, drawArea);
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len < 1) continue;
-      const nx = -dy / len;
-      const ny = dx / len;
-      const tickLen = 2.5;
-      const numTicks = Math.max(2, Math.floor(len / 4));
-      for (let t = 0; t <= numTicks; t++) {
-        const frac = t / numTicks;
-        const mx = p1.x + dx * frac;
-        const my = p1.y + dy * frac;
-        doc.line(mx, my, mx + nx * tickLen, my + ny * tickLen);
+      const p1 = toXY(wall.points[i].lng, wall.points[i].lat, bbox, a);
+      const p2 = toXY(wall.points[i + 1].lng, wall.points[i + 1].lat, bbox, a);
+      const dx = p2.x - p1.x, dy = p2.y - p1.y, l = Math.sqrt(dx * dx + dy * dy);
+      if (l < 1) continue;
+      const nx = -dy / l, ny = dx / l;
+      const n = Math.max(2, Math.floor(l / 3.5));
+      for (let t = 0; t <= n; t++) {
+        const f = t / n;
+        doc.line(p1.x + dx * f, p1.y + dy * f, p1.x + dx * f + nx * 2.2, p1.y + dy * f + ny * 2.2);
       }
     }
-
-    // Draw nodes
-    doc.setFillColor(...COLORS.wall);
-    wall.points.forEach(p => {
-      const { x, y } = lngLatToXY(p.lng, p.lat, bbox, drawArea);
-      doc.circle(x, y, 1, 'F');
+    // Nodes with labels
+    doc.setFillColor(...C.wall);
+    wall.points.forEach((p, i) => {
+      const { x, y } = toXY(p.lng, p.lat, bbox, a);
+      doc.circle(x, y, 1.2, 'F');
+      // Node label
+      doc.setFillColor(255, 255, 255); doc.setDrawColor(...C.wall); doc.setLineWidth(0.15);
+      doc.rect(x + 2, y - 3, 5, 3.5, 'FD');
+      doc.setFontSize(4); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.wall);
+      doc.text(`${i + 1}`, x + 3, y - 0.5);
+      doc.setFillColor(...C.wall);
     });
-
-    // Wall label
-    const midIdx = Math.floor(wall.points.length / 2);
-    const mp1 = wall.points[Math.max(0, midIdx - 1)];
-    const mp2 = wall.points[Math.min(wall.points.length - 1, midIdx)];
-    const labelPt = lngLatToXY(
-      (mp1.lng + mp2.lng) / 2, (mp1.lat + mp2.lat) / 2, bbox, drawArea
-    );
-
-    // Label background
-    doc.setFillColor(255, 255, 255);
-    const labelText = `${wall.name}`;
-    const lengthText = `${wall.length.toFixed(1)}m`;
-    doc.rect(labelPt.x - 10, labelPt.y - 8, 22, 10, 'F');
-    doc.setDrawColor(...COLORS.wall);
-    doc.setLineWidth(0.2);
-    doc.rect(labelPt.x - 10, labelPt.y - 8, 22, 10, 'S');
-
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...COLORS.wall);
-    doc.text(labelText, labelPt.x - 8, labelPt.y - 3);
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'normal');
-    doc.text(lengthText, labelPt.x - 8, labelPt.y + 1);
-
-    // Dimension lines
-    drawDimensionLine(doc, wall, bbox, drawArea);
+    // Node-to-node dimension lines
+    for (let i = 0; i < wall.points.length - 1; i++) {
+      const p1 = toXY(wall.points[i].lng, wall.points[i].lat, bbox, a);
+      const p2 = toXY(wall.points[i + 1].lng, wall.points[i + 1].lat, bbox, a);
+      const segLen = calculateDistance(wall.points[i], wall.points[i + 1]);
+      drawSegmentDimension(doc, p1.x, p1.y, p2.x, p2.y, segLen, 6);
+    }
+    // Wall label at midpoint
+    const mi = Math.floor(wall.points.length / 2);
+    const mp1 = wall.points[Math.max(0, mi - 1)], mp2 = wall.points[Math.min(wall.points.length - 1, mi)];
+    const lp = toXY((mp1.lng + mp2.lng) / 2, (mp1.lat + mp2.lat) / 2, bbox, a);
+    doc.setFillColor(255, 255, 255); doc.setDrawColor(...C.wall); doc.setLineWidth(0.2);
+    doc.rect(lp.x - 12, lp.y - 10, 26, 11, 'FD');
+    doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.wall);
+    doc.text(wall.name, lp.x - 10, lp.y - 4.5);
+    doc.setFontSize(5); doc.setFont('helvetica', 'normal');
+    doc.text(`${wall.length.toFixed(1)}m total`, lp.x - 10, lp.y - 0.5);
   });
 }
 
-function drawDimensionLine(
-  doc: jsPDF, wall: WallSegment, bbox: BBox,
-  drawArea: { x: number; y: number; w: number; h: number }
-) {
-  if (wall.points.length < 2) return;
-
-  const first = wall.points[0];
-  const last = wall.points[wall.points.length - 1];
-  const p1 = lngLatToXY(first.lng, first.lat, bbox, drawArea);
-  const p2 = lngLatToXY(last.lng, last.lat, bbox, drawArea);
-
-  // Offset dimension line
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  const len = Math.sqrt(dx * dx + dy * dy);
-  if (len < 1) return;
-  const nx = -dy / len * 6;
-  const ny = dx / len * 6;
-
-  doc.setDrawColor(...COLORS.dimension);
-  doc.setLineWidth(0.2);
-
-  // Extension lines
-  doc.line(p1.x, p1.y, p1.x + nx, p1.y + ny);
-  doc.line(p2.x, p2.y, p2.x + nx, p2.y + ny);
-
-  // Dimension line
-  doc.line(p1.x + nx, p1.y + ny, p2.x + nx, p2.y + ny);
-
-  // Arrows
-  const arrowSize = 1.5;
-  const adx = dx / len * arrowSize;
-  const ady = dy / len * arrowSize;
-  // Arrow at p1 end
-  doc.line(p1.x + nx, p1.y + ny, p1.x + nx + adx + ady * 0.5, p1.y + ny + ady - adx * 0.5);
-  doc.line(p1.x + nx, p1.y + ny, p1.x + nx + adx - ady * 0.5, p1.y + ny + ady + adx * 0.5);
-  // Arrow at p2 end
-  doc.line(p2.x + nx, p2.y + ny, p2.x + nx - adx + ady * 0.5, p2.y + ny - ady - adx * 0.5);
-  doc.line(p2.x + nx, p2.y + ny, p2.x + nx - adx - ady * 0.5, p2.y + ny - ady + adx * 0.5);
-
-  // Dimension text
-  const midX = (p1.x + p2.x) / 2 + nx;
-  const midY = (p1.y + p2.y) / 2 + ny;
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...COLORS.dimension);
-  doc.text(`${wall.length.toFixed(1)}m`, midX - 4, midY - 1.5);
+// ─── WALL SCHEDULE TABLE ──────────────────────────────────
+function drawWallSchedule(doc: jsPDF, walls: WallSegment[], x: number, y: number) {
+  doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
+  doc.text('WALL SCHEDULE', x, y); y += 4;
+  const cols = [17, 42, 14, 13, 13, 10, 10, 10];
+  const hdrs = ['REF', 'TYPE', 'LEN', 'AVG H', 'MAX H', 'SRCH', 'FNCE', 'DRN'];
+  const tw = cols.reduce((a, b) => a + b, 0);
+  doc.setFillColor(...C.titleBg); doc.rect(x, y, tw, 4.5, 'F');
+  doc.setTextColor(...C.white); doc.setFontSize(4.5); doc.setFont('helvetica', 'bold');
+  let cx = x; hdrs.forEach((h, i) => { doc.text(h, cx + 1, y + 3.2); cx += cols[i]; }); y += 4.5;
+  doc.setTextColor(...C.text); doc.setFont('helvetica', 'normal');
+  walls.forEach((wall, idx) => {
+    if (idx % 2 === 0) { doc.setFillColor(245, 245, 245); doc.rect(x, y, tw, 4, 'F'); }
+    doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.08); doc.rect(x, y, tw, 4);
+    cx = x;
+    [wall.name, WALL_TYPE_LABELS[wall.wallType].substring(0, 22), wall.length.toFixed(1),
+     wall.averageHeight.toString(), wall.maxHeight.toString(),
+     wall.hasSurcharge ? 'Y' : 'N', wall.hasFenceAbove ? 'Y' : 'N', wall.hasDrainageRequired ? 'Y' : 'N'
+    ].forEach((v, i) => { doc.text(v, cx + 1, y + 2.8); cx += cols[i]; });
+    y += 4;
+  });
+  doc.setFillColor(235, 235, 235); doc.rect(x, y, tw, 4.5, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(4.5);
+  doc.text(`TOTAL: ${getTotalWallLength(walls).toFixed(1)}m  |  ${walls.length} SEGMENT(S)`, x + 2, y + 3);
+  return y + 8;
 }
 
-function drawWallElevation(
-  doc: jsPDF, wall: WallSegment,
-  x: number, y: number, availWidth: number, maxElevH: number
-) {
-  const wallLen = wall.length || 5;
+// ─── ELEVATION DRAWING (wall-type specific) ───────────────
+
+function getWallColors(type: WallType): { stroke: RGB; fill: RGB } {
+  switch (type) {
+    case 'concrete-sleeper': return { stroke: C.sleeper, fill: C.sleeperFill };
+    case 'timber': return { stroke: C.timber, fill: C.timberFill };
+    case 'reinforced-masonry': return { stroke: C.masonry, fill: C.masonryFill };
+    case 'reinforced-concrete': return { stroke: C.concrete, fill: C.concFill };
+    case 'gabion': return { stroke: C.gabion, fill: C.gabionFill };
+    default: return { stroke: C.concrete, fill: C.concFill };
+  }
+}
+
+function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number, availW: number, availH: number): number {
+  const wallLen = wall.length || 3;
   const wallH = wall.maxHeight || 1;
+  const totalVisH = wallH + 1.0; // include footing
+  const hScale = (availW * 0.5) / wallLen;
+  const vScale = (availH * 0.7) / totalVisH;
+  const scale = Math.min(hScale, vScale, 12); // cap scale
+  const wW = wallLen * scale;
+  const wH = wallH * scale;
+  const footH = 0.4 * scale;
+  const wallColors = getWallColors(wall.wallType);
+  const groundY = baseY;
 
-  // Scale to fit
-  const hScale = availWidth / wallLen;
-  const vScale = maxElevH / Math.max(wallH + 1.5, 3);
-  const scale = Math.min(hScale, vScale);
+  // ── Title ──
+  doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
+  doc.text(`${wall.name} — TYPICAL ELEVATION`, ox, groundY - wH - 12);
+  doc.setFontSize(5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.textLight);
+  doc.text(`Type: ${WALL_TYPE_LABELS[wall.wallType]}  |  Length: ${wallLen.toFixed(1)}m  |  Max Ht: ${wallH.toFixed(1)}m`, ox, groundY - wH - 8);
 
-  const drawnW = wallLen * scale;
-  const drawnH = wallH * scale;
-  const footingDepth = 0.5 * scale;
-
-  // Ground line
-  doc.setDrawColor(...COLORS.ground);
-  doc.setLineWidth(0.5);
-  doc.setLineDashPattern([2, 1], 0);
-  doc.line(x - 5, y, x + drawnW + 15, y);
-  doc.setLineDashPattern([], 0);
-
-  // Footing
-  doc.setDrawColor(...COLORS.concrete);
-  doc.setFillColor(230, 230, 230);
-  doc.setLineWidth(0.3);
-  const footingW = drawnW + 4;
-  const footingX = x - 2;
-  doc.rect(footingX, y, footingW, footingDepth + 2, 'FD');
-
-  // Hatch footing
-  doc.setDrawColor(...COLORS.hatch);
-  doc.setLineWidth(0.1);
-  for (let hx = footingX; hx < footingX + footingW; hx += 2) {
-    doc.line(hx, y, Math.min(hx + footingDepth + 2, footingX + footingW), y + footingDepth + 2);
+  // ── Extended ground line ──
+  const gExtL = 15, gExtR = 25;
+  doc.setDrawColor(...C.soil); doc.setLineWidth(0.6);
+  doc.line(ox - gExtL, groundY, ox + wW + gExtR, groundY);
+  // Ground hatch below
+  doc.setLineWidth(0.15);
+  for (let gx = ox - gExtL; gx < ox + wW + gExtR; gx += 3) {
+    doc.line(gx, groundY, gx - 2, groundY + 2);
   }
 
-  // Wall stem
-  doc.setDrawColor(...COLORS.wall);
-  doc.setFillColor(245, 245, 245);
-  doc.setLineWidth(0.5);
-  const stemW = Math.max(drawnW, 4);
-  doc.rect(x, y - drawnH, stemW, drawnH, 'FD');
-
-  // Wall hatch pattern (diagonal lines)
-  doc.setLineWidth(0.1);
-  doc.setDrawColor(...COLORS.hatch);
-  for (let hy = y - drawnH; hy < y; hy += 3) {
-    doc.line(x, hy, x + stemW, hy + 3);
+  // ── Footing ──
+  const fW = wW + 6, fX = ox - 3;
+  doc.setFillColor(...C.concFill); doc.setDrawColor(...C.concrete); doc.setLineWidth(0.35);
+  doc.rect(fX, groundY, fW, footH, 'FD');
+  // Concrete hatch in footing
+  doc.setDrawColor(170, 170, 170); doc.setLineWidth(0.08);
+  for (let hx = fX + 1; hx < fX + fW; hx += 2.5) {
+    doc.line(hx, groundY, Math.min(hx + footH, fX + fW), groundY + footH);
   }
 
-  // Retained soil triangle pattern (right side)
-  doc.setDrawColor(...COLORS.ground);
-  doc.setFillColor(220, 210, 190);
-  doc.setLineWidth(0.3);
-  const soilW = Math.min(15, availWidth - drawnW - 10);
-  if (soilW > 3) {
-    doc.triangle(
-      x + stemW, y,
-      x + stemW, y - drawnH,
-      x + stemW + soilW, y,
-      'FD'
-    );
-    // Soil dots
-    doc.setFillColor(...COLORS.ground);
-    for (let sy = y - drawnH + 3; sy < y - 1; sy += 4) {
-      for (let sx = x + stemW + 2; sx < x + stemW + soilW - 1; sx += 4) {
-        const relY = (sy - (y - drawnH)) / drawnH;
-        if (sx < x + stemW + soilW * relY) {
-          doc.circle(sx, sy, 0.3, 'F');
+  // ── Wall stem (type-specific rendering) ──
+  doc.setFillColor(...wallColors.fill); doc.setDrawColor(...wallColors.stroke); doc.setLineWidth(0.4);
+
+  const stemThickness = Math.max(wW, 5); // visual thickness for elevation view
+
+  switch (wall.wallType) {
+    case 'concrete-sleeper': {
+      // Draw individual 200mm sleeper courses
+      const courseH = 0.2 * scale;
+      const numCourses = Math.max(1, Math.round(wallH / 0.2));
+      const actualCourseH = wH / numCourses;
+      for (let c = 0; c < numCourses; c++) {
+        const cy = groundY - (c + 1) * actualCourseH;
+        doc.setFillColor(...wallColors.fill);
+        doc.rect(ox, cy, stemThickness, actualCourseH, 'FD');
+        // Sleeper texture: horizontal line in centre
+        doc.setDrawColor(...wallColors.stroke); doc.setLineWidth(0.1);
+        doc.line(ox + 0.5, cy + actualCourseH * 0.5, ox + stemThickness - 0.5, cy + actualCourseH * 0.5);
+      }
+      // Steel H-posts at intervals
+      const postSpacing = Math.max(stemThickness / Math.ceil(wallLen / 2.4), 8);
+      doc.setFillColor(100, 100, 100);
+      for (let px = ox; px <= ox + stemThickness; px += postSpacing) {
+        doc.rect(px - 0.8, groundY - wH, 1.6, wH + footH, 'F');
+      }
+      break;
+    }
+    case 'reinforced-masonry': {
+      // Draw block courses (200mm blocks)
+      const courseH = 0.2 * scale;
+      const numCourses = Math.max(1, Math.round(wallH / 0.2));
+      const actualCourseH = wH / numCourses;
+      const blockW = 0.4 * scale;
+      for (let c = 0; c < numCourses; c++) {
+        const cy = groundY - (c + 1) * actualCourseH;
+        const offsetX = (c % 2) * blockW * 0.5; // stagger
+        for (let bx = ox + offsetX; bx < ox + stemThickness; bx += blockW) {
+          const bw = Math.min(blockW, ox + stemThickness - bx);
+          doc.setFillColor(...wallColors.fill);
+          doc.rect(bx, cy, bw, actualCourseH, 'FD');
         }
       }
+      // Rebar indicators
+      doc.setDrawColor(80, 80, 80); doc.setLineWidth(0.2);
+      doc.setLineDashPattern([1, 1.5], 0);
+      for (let rx = ox + blockW; rx < ox + stemThickness; rx += blockW * 2) {
+        doc.line(rx, groundY, rx, groundY - wH);
+      }
+      doc.setLineDashPattern([], 0);
+      break;
+    }
+    case 'reinforced-concrete': {
+      // Solid stem
+      doc.rect(ox, groundY - wH, stemThickness, wH, 'FD');
+      // Cross-hatch for concrete
+      doc.setDrawColor(170, 170, 170); doc.setLineWidth(0.08);
+      for (let hy = groundY - wH; hy < groundY; hy += 2.5) {
+        doc.line(ox, hy, ox + stemThickness, hy + 2.5);
+      }
+      for (let hy = groundY - wH; hy < groundY; hy += 2.5) {
+        doc.line(ox + stemThickness, hy, ox, hy + 2.5);
+      }
+      // Rebar dots
+      doc.setFillColor(60, 60, 60);
+      const rebarY = [groundY - wH + 2, groundY - 2];
+      rebarY.forEach(ry => {
+        doc.circle(ox + 1.5, ry, 0.6, 'F');
+        doc.circle(ox + stemThickness - 1.5, ry, 0.6, 'F');
+      });
+      break;
+    }
+    case 'timber': {
+      // Horizontal timber rails
+      const railH = 0.2 * scale;
+      const numRails = Math.max(1, Math.round(wallH / 0.2));
+      const actualRailH = wH / numRails;
+      for (let r = 0; r < numRails; r++) {
+        const ry = groundY - (r + 1) * actualRailH;
+        doc.setFillColor(...wallColors.fill);
+        doc.rect(ox, ry, stemThickness, actualRailH, 'FD');
+        // Wood grain lines
+        doc.setDrawColor(...wallColors.stroke); doc.setLineWidth(0.06);
+        doc.line(ox + 1, ry + actualRailH * 0.3, ox + stemThickness - 1, ry + actualRailH * 0.3);
+        doc.line(ox + 2, ry + actualRailH * 0.7, ox + stemThickness - 2, ry + actualRailH * 0.7);
+      }
+      // Timber posts
+      const postSpacing = Math.max(stemThickness / Math.ceil(wallLen / 1.8), 7);
+      doc.setFillColor(120, 85, 45);
+      for (let px = ox; px <= ox + stemThickness; px += postSpacing) {
+        doc.rect(px - 1, groundY - wH, 2, wH + footH * 0.8, 'F');
+      }
+      break;
+    }
+    case 'gabion': {
+      // Gabion baskets stacked
+      const basketH = 1.0 * scale;
+      const numRows = Math.max(1, Math.round(wallH / 1.0));
+      const actualBH = wH / numRows;
+      for (let r = 0; r < numRows; r++) {
+        const ry = groundY - (r + 1) * actualBH;
+        doc.setFillColor(...wallColors.fill);
+        doc.rect(ox, ry, stemThickness, actualBH, 'FD');
+        // Wire mesh pattern
+        doc.setDrawColor(...wallColors.stroke); doc.setLineWidth(0.1);
+        const meshSpacing = Math.max(actualBH / 3, 1.5);
+        for (let my = ry; my < ry + actualBH; my += meshSpacing) {
+          doc.line(ox, my, ox + stemThickness, my);
+        }
+        for (let mx = ox; mx < ox + stemThickness; mx += meshSpacing) {
+          doc.line(mx, ry, mx, ry + actualBH);
+        }
+        // Stone fill circles
+        doc.setFillColor(160, 160, 160);
+        for (let sy = ry + 1.5; sy < ry + actualBH - 1; sy += 3) {
+          for (let sx = ox + 2; sx < ox + stemThickness - 1; sx += 3.5) {
+            const r2 = 0.5 + Math.random() * 0.5;
+            doc.circle(sx, sy, r2, 'FD');
+          }
+        }
+      }
+      break;
+    }
+    default: {
+      doc.rect(ox, groundY - wH, stemThickness, wH, 'FD');
+      doc.setDrawColor(180, 180, 180); doc.setLineWidth(0.08);
+      for (let hy = groundY - wH + 2; hy < groundY; hy += 3) {
+        doc.line(ox, hy, ox + stemThickness, hy + 3);
+      }
+      break;
     }
   }
 
-  // Height dimension (left side)
-  doc.setDrawColor(...COLORS.dimension);
-  doc.setLineWidth(0.2);
-  const dimX = x - 8;
-  doc.line(dimX, y, dimX, y - drawnH);
-  doc.line(dimX - 1, y, dimX + 1, y);
-  doc.line(dimX - 1, y - drawnH, dimX + 1, y - drawnH);
-  // Arrows
-  doc.line(dimX, y, dimX - 0.8, y - 1.5);
-  doc.line(dimX, y, dimX + 0.8, y - 1.5);
-  doc.line(dimX, y - drawnH, dimX - 0.8, y - drawnH + 1.5);
-  doc.line(dimX, y - drawnH, dimX + 0.8, y - drawnH + 1.5);
+  // ── Retained soil (right side) ──
+  const soilW = Math.min(20, availW * 0.15);
+  doc.setFillColor(...C.soilFill); doc.setDrawColor(...C.soil); doc.setLineWidth(0.3);
+  // Soil profile as rectangle behind wall going up
+  doc.rect(ox + stemThickness, groundY - wH, soilW, wH, 'FD');
+  // Sloped top surface
+  doc.setFillColor(...C.soilFill);
+  doc.triangle(ox + stemThickness + soilW, groundY - wH, ox + stemThickness + soilW, groundY, ox + stemThickness + soilW + 8, groundY, 'FD');
+  // Soil dot pattern
+  doc.setFillColor(...C.soil);
+  for (let sy = groundY - wH + 2; sy < groundY - 1; sy += 3) {
+    for (let sx = ox + stemThickness + 2; sx < ox + stemThickness + soilW - 1; sx += 3) {
+      doc.circle(sx, sy, 0.25, 'F');
+    }
+  }
 
-  doc.setFontSize(5.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...COLORS.dimension);
-  doc.text(`${wallH.toFixed(1)}m`, dimX - 6, y - drawnH / 2 + 1, { angle: 90 });
+  // ── Finished ground level (left/low side) ──
+  doc.setFillColor(200, 220, 200);
+  doc.rect(ox - gExtL, groundY, gExtL - 1, 3, 'F');
+  doc.setFontSize(3.5); doc.setTextColor(...C.green);
+  doc.text('FGL', ox - gExtL + 1, groundY + 2);
 
-  // Length dimension (bottom)
-  const dimY = y + footingDepth + 6;
-  doc.setDrawColor(...COLORS.dimension);
-  doc.line(x, dimY, x + stemW, dimY);
-  doc.line(x, dimY - 1, x, dimY + 1);
-  doc.line(x + stemW, dimY - 1, x + stemW, dimY + 1);
-  doc.text(`${wallLen.toFixed(1)}m`, x + stemW / 2 - 3, dimY + 3.5);
+  // ── Drainage (if required) ──
+  if (wall.hasDrainageRequired) {
+    const drainX = ox + stemThickness - 2;
+    const drainY = groundY - 3;
+    doc.setDrawColor(...C.drainage); doc.setLineWidth(0.3);
+    doc.circle(drainX, drainY, 1.5, 'S');
+    doc.setFillColor(...C.drainage);
+    doc.circle(drainX, drainY, 0.4, 'F');
+    // Ag pipe label
+    doc.setFontSize(3.5); doc.setTextColor(...C.drainage);
+    doc.text('100Ø AG PIPE', drainX + 3, drainY + 0.5);
+    // Drainage aggregate zone
+    doc.setDrawColor(...C.drainage); doc.setLineWidth(0.1);
+    doc.setLineDashPattern([0.5, 0.5], 0);
+    doc.rect(ox + stemThickness - 4, groundY - wH, 4, wH);
+    doc.setLineDashPattern([], 0);
+    doc.setFontSize(3); doc.text('DRAIN.', ox + stemThickness - 3.5, groundY - wH - 1);
+    doc.text('AGG.', ox + stemThickness - 3.5, groundY - wH + 2);
+  }
 
-  // Labels
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...COLORS.text);
-  doc.text(`${wall.name} — ELEVATION`, x, y - drawnH - 5);
-  doc.setFontSize(5.5);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`Type: ${WALL_TYPE_LABELS[wall.wallType]}`, x, y - drawnH - 1.5);
+  // ── Fence (only if hasFenceAbove) ──
+  if (wall.hasFenceAbove) {
+    const fenceH = 5;
+    doc.setDrawColor(...C.fence); doc.setLineWidth(0.35);
+    // Posts
+    const numPosts = Math.max(2, Math.ceil(stemThickness / 12));
+    const postSpacing = stemThickness / (numPosts - 1);
+    for (let i = 0; i < numPosts; i++) {
+      const fx = ox + i * postSpacing;
+      doc.line(fx, groundY - wH, fx, groundY - wH - fenceH);
+    }
+    // Rails
+    doc.setLineWidth(0.25);
+    doc.line(ox, groundY - wH - fenceH, ox + stemThickness, groundY - wH - fenceH);
+    doc.line(ox, groundY - wH - fenceH * 0.5, ox + stemThickness, groundY - wH - fenceH * 0.5);
+    // Fence label
+    doc.setFontSize(4); doc.setTextColor(...C.fence); doc.setFont('helvetica', 'normal');
+    doc.text('FENCE ABOVE', ox + stemThickness + 3, groundY - wH - fenceH + 2);
+  }
 
-  // Annotations
-  const annotX = x + stemW + soilW + 5;
-  doc.setFontSize(5);
-  doc.setTextColor(...COLORS.text);
-  const notes = [
+  // ── HEIGHT DIMENSION (left side) ──
+  const dimX = ox - 12;
+  doc.setDrawColor(...C.dimension); doc.setLineWidth(0.2);
+  doc.line(dimX, groundY, dimX, groundY - wH);
+  // Extension lines
+  doc.line(dimX - 1, groundY, ox - 1, groundY);
+  doc.line(dimX - 1, groundY - wH, ox - 1, groundY - wH);
+  // Ticks
+  doc.line(dimX - 1, groundY, dimX + 1, groundY);
+  doc.line(dimX - 1, groundY - wH, dimX + 1, groundY - wH);
+  // Arrowheads
+  doc.setFillColor(...C.dimension);
+  doc.triangle(dimX, groundY, dimX - 0.6, groundY - 1.2, dimX + 0.6, groundY - 1.2, 'F');
+  doc.triangle(dimX, groundY - wH, dimX - 0.6, groundY - wH + 1.2, dimX + 0.6, groundY - wH + 1.2, 'F');
+  // Height text
+  doc.setFontSize(5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.dimension);
+  const htText = `${wallH.toFixed(1)}m`;
+  doc.text(htText, dimX - 3, groundY - wH / 2 + 1, { angle: 90 });
+
+  // ── LENGTH DIMENSION (bottom) ──
+  const ldY = groundY + footH + 5;
+  doc.setDrawColor(...C.dimension); doc.setLineWidth(0.2);
+  doc.line(ox, ldY, ox + stemThickness, ldY);
+  doc.line(ox, groundY + footH, ox, ldY + 1);
+  doc.line(ox + stemThickness, groundY + footH, ox + stemThickness, ldY + 1);
+  doc.setFillColor(...C.dimension);
+  doc.triangle(ox, ldY, ox + 1.2, ldY - 0.6, ox + 1.2, ldY + 0.6, 'F');
+  doc.triangle(ox + stemThickness, ldY, ox + stemThickness - 1.2, ldY - 0.6, ox + stemThickness - 1.2, ldY + 0.6, 'F');
+  doc.setFontSize(5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.dimension);
+  doc.text(`${wallLen.toFixed(1)}m`, ox + stemThickness / 2 - 4, ldY + 3.5);
+
+  // ── Annotations panel ──
+  const annX = ox + stemThickness + soilW + 15;
+  doc.setFontSize(5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
+  doc.text('DETAILS', annX, groundY - wH);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5);
+  let annY = groundY - wH + 4;
+  const details = [
+    `Wall Type: ${WALL_TYPE_LABELS[wall.wallType]}`,
     `Max Height: ${wall.maxHeight}m`,
     `Avg Height: ${wall.averageHeight}m`,
-    wall.hasSurcharge ? 'Surcharge: YES' : '',
-    wall.hasFenceAbove ? 'Fence Above: YES' : '',
-    wall.hasDrainageRequired ? 'Drainage: REQ' : '',
-  ].filter(Boolean);
-  notes.forEach((n, i) => {
-    doc.text(n, annotX, y - drawnH + 2 + i * 3.5);
-  });
+    `Length: ${wallLen.toFixed(1)}m`,
+    `Surcharge: ${wall.hasSurcharge ? 'YES' : 'NO'}`,
+    `Fence Above: ${wall.hasFenceAbove ? 'YES' : 'NO'}`,
+    `Drainage: ${wall.hasDrainageRequired ? 'YES' : 'NO'}`,
+  ];
+  details.forEach(d => { doc.text(d, annX, annY); annY += 3.5; });
+  if (wall.notes) { doc.text(`Notes: ${wall.notes}`, annX, annY); annY += 3.5; }
 
-  // Fence above indicator
-  if (wall.hasFenceAbove) {
-    doc.setDrawColor(...COLORS.text);
-    doc.setLineWidth(0.3);
-    const fenceH = 4;
-    // Posts
-    for (let fx = x; fx <= x + stemW; fx += Math.max(stemW / 3, 5)) {
-      doc.line(fx, y - drawnH, fx, y - drawnH - fenceH);
-    }
-    // Top rail
-    doc.line(x, y - drawnH - fenceH, x + stemW, y - drawnH - fenceH);
-    doc.line(x, y - drawnH - fenceH / 2, x + stemW, y - drawnH - fenceH / 2);
-  }
-
-  return drawnH + footingDepth + 15; // return total height used
+  const fenceExtra = wall.hasFenceAbove ? 8 : 0;
+  return wH + footH + fenceExtra + 25;
 }
 
-function drawWallScheduleTable(doc: jsPDF, walls: WallSegment[], x: number, y: number, maxW: number) {
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...COLORS.text);
-  doc.text('WALL SCHEDULE', x, y);
-  y += 4;
-
-  const colWidths = [18, 45, 16, 14, 14, 12, 12, 12];
-  const headers = ['REF', 'TYPE', 'LEN(m)', 'AVG H', 'MAX H', 'SRCH', 'FENCE', 'DRAIN'];
-  const totalW = Math.min(colWidths.reduce((a, b) => a + b, 0), maxW);
-
-  // Header row
-  doc.setFillColor(45, 55, 72);
-  doc.rect(x, y, totalW, 5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(5);
-  doc.setFont('helvetica', 'bold');
-  let cx = x;
-  headers.forEach((h, i) => {
-    doc.text(h, cx + 1, y + 3.5);
-    cx += colWidths[i];
-  });
-  y += 5;
-
-  // Data rows
-  doc.setTextColor(...COLORS.text);
-  doc.setFont('helvetica', 'normal');
-  walls.forEach((wall, idx) => {
-    if (idx % 2 === 0) {
-      doc.setFillColor(245, 245, 245);
-      doc.rect(x, y, totalW, 4.5, 'F');
-    }
-    doc.setDrawColor(220, 220, 220);
-    doc.setLineWidth(0.1);
-    doc.rect(x, y, totalW, 4.5);
-
-    cx = x;
-    const vals = [
-      wall.name,
-      WALL_TYPE_LABELS[wall.wallType].substring(0, 25),
-      wall.length.toFixed(1),
-      wall.averageHeight.toString(),
-      wall.maxHeight.toString(),
-      wall.hasSurcharge ? 'Y' : 'N',
-      wall.hasFenceAbove ? 'Y' : 'N',
-      wall.hasDrainageRequired ? 'Y' : 'N',
-    ];
-    vals.forEach((v, i) => {
-      doc.text(v, cx + 1, y + 3.2);
-      cx += colWidths[i];
-    });
-    y += 4.5;
-  });
-
-  // Total row
-  doc.setFillColor(240, 240, 240);
-  doc.rect(x, y, totalW, 5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(5.5);
-  doc.text(`TOTAL LENGTH: ${getTotalWallLength(walls).toFixed(1)}m`, x + 2, y + 3.5);
-  doc.text(`${walls.length} SEGMENT(S)`, x + 60, y + 3.5);
-}
-
-export function generateEngineeringSitePlan(project: ProjectState) {
+// ─── MAIN EXPORT FUNCTION ─────────────────────────────────
+export async function generateEngineeringSitePlan(project: ProjectState, mapboxToken?: string) {
   const doc = new jsPDF('landscape', 'mm', 'a3');
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
 
-  // ─── PAGE 1: SITE PLAN ───────────────────────────────
+  // ═══ PAGE 1: SITE PLAN ═══════════════════════════════════
   drawBorder(doc, w, h);
-
-  // Drawing title
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(...COLORS.text);
+  doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
   doc.text('CONCEPT RETAINING WALL — SITE PLAN', 18, 20);
-  doc.setFontSize(6);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(120, 120, 120);
-  doc.text('PRELIMINARY CONCEPT ONLY — NOT FOR CONSTRUCTION — ENGINEERING CERTIFICATION REQUIRED', 18, 25);
+  doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.textLight);
+  doc.text('PRELIMINARY CONCEPT ONLY — NOT FOR CONSTRUCTION — ENGINEERING CERTIFICATION REQUIRED', 18, 24);
 
   if (project.walls.length > 0 && project.walls.some(wall => wall.points.length >= 2)) {
     const bbox = getWallsBBox(project.walls);
+    const planArea: DrawArea = { x: 25, y: 30, w: w * 0.55, h: h - 78 };
 
-    // Plan drawing area
-    const planArea = { x: 25, y: 32, w: w * 0.55, h: h - 80 };
+    // Satellite underlay
+    if (mapboxToken) {
+      try {
+        const imgData = await fetchSatelliteImage(bbox, 1280, 1024, mapboxToken);
+        if (imgData) {
+          doc.addImage(imgData, 'PNG', planArea.x, planArea.y, planArea.w, planArea.h);
+          // Semi-transparent overlay for readability
+          doc.saveGraphicsState();
+          doc.setGState(new (doc as any).GState({ opacity: 0.15 }));
+          doc.setFillColor(255, 255, 255);
+          doc.rect(planArea.x, planArea.y, planArea.w, planArea.h, 'F');
+          doc.restoreGraphicsState();
+        }
+      } catch { /* proceed without satellite */ }
+    }
 
-    // Draw plan border
-    doc.setDrawColor(...COLORS.border);
-    doc.setLineWidth(0.3);
+    // Plan border
+    doc.setDrawColor(...C.border); doc.setLineWidth(0.3);
     doc.rect(planArea.x, planArea.y, planArea.w, planArea.h);
 
-    // Grid
+    // Grid overlay
     const gridSpacing = drawGrid(doc, planArea, bbox);
 
-    // Walls
+    // Walls with node-to-node dimensions
     drawWallsOnPlan(doc, project.walls, bbox, planArea);
 
-    // Scale bar
+    // Scale bar & north arrow
     const latSpanM = (bbox.maxLat - bbox.minLat) * 111320;
     const pixPerM = planArea.h / latSpanM;
-    drawScaleBar(doc, planArea.x + 5, planArea.y + planArea.h - 10, gridSpacing, pixPerM);
+    drawScaleBar(doc, planArea.x + 5, planArea.y + planArea.h - 8, gridSpacing, pixPerM);
+    drawNorthArrow(doc, planArea.x + planArea.w - 12, planArea.y + 14);
+    doc.setFontSize(4); doc.setTextColor(...C.textLight); doc.text(`Grid: ${gridSpacing}m`, planArea.x + 5, planArea.y + planArea.h - 1);
 
-    // North arrow
-    drawNorthArrow(doc, planArea.x + planArea.w - 12, planArea.y + 15);
-
-    // Grid reference text
-    doc.setFontSize(4.5);
-    doc.setTextColor(...COLORS.gridDark);
-    doc.text(`Grid: ${gridSpacing}m`, planArea.x + 5, planArea.y + planArea.h - 2);
-
-    // Wall schedule (right side of plan page)
+    // Wall schedule (right side)
     const schedX = planArea.x + planArea.w + 15;
-    drawWallScheduleTable(doc, project.walls, schedX, 35, w - schedX - 15);
+    let notesY = drawWallSchedule(doc, project.walls, schedX, 33);
 
-    // Notes section
-    let notesY = 35 + project.walls.length * 4.5 + 25;
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...COLORS.text);
-    doc.text('NOTES', schedX, notesY);
-    notesY += 5;
-    doc.setFontSize(5);
-    doc.setFont('helvetica', 'normal');
-    const notes = [
-      '1. All dimensions are approximate.',
-      '2. Measurements from map data — verify by survey.',
-      '3. Wall positions are conceptual.',
-      '4. Heights are as nominated by user.',
-      '5. Offsets are user-estimated.',
-      '6. Engineering design required before construction.',
-      '7. Not for council submission.',
-    ];
-    notes.forEach(n => {
-      doc.text(n, schedX, notesY);
-      notesY += 3.5;
-    });
+    // Notes
+    doc.setFontSize(6); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
+    doc.text('NOTES', schedX, notesY); notesY += 4;
+    doc.setFontSize(4.5); doc.setFont('helvetica', 'normal');
+    ['1. All dimensions approximate.', '2. Verify by survey.', '3. Wall positions conceptual.',
+     '4. Heights as nominated by user.', '5. Engineering design required.', '6. Not for council submission.'
+    ].forEach(n => { doc.text(n, schedX, notesY); notesY += 3.2; });
 
-    // Site context notes
     if (project.siteContext.slopeNotes || project.siteContext.comments) {
-      notesY += 5;
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(6);
-      doc.text('SITE CONTEXT', schedX, notesY);
       notesY += 4;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(5);
-      if (project.siteContext.slopeNotes) { doc.text(`Slope: ${project.siteContext.slopeNotes}`, schedX, notesY); notesY += 3.5; }
-      if (project.siteContext.accessNotes) { doc.text(`Access: ${project.siteContext.accessNotes}`, schedX, notesY); notesY += 3.5; }
-      if (project.siteContext.adjoiningStructures) { doc.text(`Adjoining: ${project.siteContext.adjoiningStructures}`, schedX, notesY); notesY += 3.5; }
-      if (project.siteContext.comments) { doc.text(`Comments: ${project.siteContext.comments}`, schedX, notesY); notesY += 3.5; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(5.5);
+      doc.text('SITE CONTEXT', schedX, notesY); notesY += 3.5;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(4.5);
+      if (project.siteContext.slopeNotes) { doc.text(`Slope: ${project.siteContext.slopeNotes}`, schedX, notesY); notesY += 3.2; }
+      if (project.siteContext.accessNotes) { doc.text(`Access: ${project.siteContext.accessNotes}`, schedX, notesY); notesY += 3.2; }
+      if (project.siteContext.adjoiningStructures) { doc.text(`Adjoining: ${project.siteContext.adjoiningStructures}`, schedX, notesY); notesY += 3.2; }
+      if (project.siteContext.comments) { doc.text(`Comments: ${project.siteContext.comments}`, schedX, notesY); notesY += 3.2; }
     }
   } else {
-    // No walls drawn
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'italic');
-    doc.setTextColor(150, 150, 150);
-    doc.text('No wall segments drawn — plan view unavailable', w / 2 - 50, h / 2);
+    doc.setFontSize(11); doc.setFont('helvetica', 'italic'); doc.setTextColor(160, 160, 160);
+    doc.text('No wall segments drawn — plan view unavailable', w / 2 - 55, h / 2);
   }
 
-  // Title block
-  drawTitleBlock(doc, w, h, project);
+  drawTitleBlock(doc, w, h, project, 'SITE PLAN — 1 of 2');
+  drawDisclaimer(doc, w, h);
 
-  // Disclaimer bar at bottom
-  doc.setFillColor(250, 250, 250);
-  doc.rect(12, h - 18, w - 24 - 125, 6, 'F');
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.2);
-  doc.rect(12, h - 18, w - 24 - 125, 6, 'S');
-  doc.setFontSize(4.5);
-  doc.setTextColor(120, 120, 120);
-  doc.text(
-    'DISCLAIMER: This is a preliminary concept planning document only. Not for construction or council approval. Engineering certification required. © Simple Engineers',
-    15, h - 14
-  );
-
-  // ─── PAGE 2: WALL ELEVATIONS ───────────────────────────
+  // ═══ PAGE 2+: WALL ELEVATIONS ════════════════════════════
   if (project.walls.length > 0) {
     doc.addPage([420, 297], 'landscape');
     drawBorder(doc, w, h);
+    doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
+    doc.text('CONCEPT RETAINING WALL — ELEVATIONS', 18, 20);
+    doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.textLight);
+    doc.text('PRELIMINARY CONCEPT ONLY — NOT FOR CONSTRUCTION — ENGINEERING CERTIFICATION REQUIRED', 18, 24);
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...COLORS.text);
-    doc.text('CONCEPT RETAINING WALL — ELEVATIONS & SECTIONS', 18, 20);
-    doc.setFontSize(6);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(120, 120, 120);
-    doc.text('PRELIMINARY CONCEPT ONLY — NOT FOR CONSTRUCTION — ENGINEERING CERTIFICATION REQUIRED', 18, 25);
-
-    // Draw each wall elevation
-    const maxElevsPerPage = 3;
-    let elevY = 45;
-    const elevAvailW = w - 60;
-    const elevMaxH = (h - 90) / Math.min(project.walls.length, maxElevsPerPage);
+    const maxPerPage = 2;
+    let elevY = 50;
+    const elevAvailW = w - 50;
+    const elevAvailH = (h - 85) / Math.min(project.walls.length, maxPerPage);
 
     project.walls.forEach((wall, idx) => {
-      if (idx > 0 && idx % maxElevsPerPage === 0) {
+      if (idx > 0 && idx % maxPerPage === 0) {
+        drawTitleBlock(doc, w, h, project, `ELEVATIONS — ${Math.floor(idx / maxPerPage) + 1}`);
+        drawDisclaimer(doc, w, h);
         doc.addPage([420, 297], 'landscape');
         drawBorder(doc, w, h);
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...COLORS.text);
-        doc.text('CONCEPT RETAINING WALL — ELEVATIONS & SECTIONS (CONT.)', 18, 20);
-        elevY = 45;
+        doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
+        doc.text('CONCEPT RETAINING WALL — ELEVATIONS (CONT.)', 18, 20);
+        elevY = 50;
       }
 
-      // Separator line
-      if (idx % maxElevsPerPage > 0) {
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.2);
+      if (idx % maxPerPage > 0) {
+        doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.15);
         doc.setLineDashPattern([3, 2], 0);
-        doc.line(18, elevY - 8, w - 18, elevY - 8);
+        doc.line(18, elevY - 5, w - 18, elevY - 5);
         doc.setLineDashPattern([], 0);
       }
 
-      const usedH = drawWallElevation(doc, wall, 35, elevY + Math.min(elevMaxH * 0.6, 45), elevAvailW * 0.6, Math.min(elevMaxH * 0.5, 35));
-      elevY += Math.max(usedH, elevMaxH) + 5;
+      const usedH = drawElevation(doc, wall, 35, elevY + Math.min(elevAvailH * 0.55, 50), elevAvailW, elevAvailH);
+      elevY += Math.max(usedH, elevAvailH);
     });
 
-    drawTitleBlock(doc, w, h, project);
-
-    // Disclaimer
-    doc.setFillColor(250, 250, 250);
-    doc.rect(12, h - 18, w - 24 - 125, 6, 'F');
-    doc.setDrawColor(...COLORS.border);
-    doc.setLineWidth(0.2);
-    doc.rect(12, h - 18, w - 24 - 125, 6, 'S');
-    doc.setFontSize(4.5);
-    doc.setTextColor(120, 120, 120);
-    doc.text(
-      'DISCLAIMER: This is a preliminary concept planning document only. Not for construction or council approval. Engineering certification required. © Simple Engineers',
-      15, h - 14
-    );
+    drawTitleBlock(doc, w, h, project, 'ELEVATIONS — 2 of 2');
+    drawDisclaimer(doc, w, h);
   }
 
   doc.save(`concept-site-plan-${project.details.projectReference || 'export'}.pdf`);
