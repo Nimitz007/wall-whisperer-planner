@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength, generateWallName } from '@/lib/wallCalculations';
-import { Map, Layers, Pencil, Trash2, MousePointer, Undo2 } from 'lucide-react';
+import { Map, Pencil, Trash2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { v4Fallback } from '@/lib/idUtils';
 
