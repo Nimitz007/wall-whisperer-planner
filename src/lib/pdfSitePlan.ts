@@ -654,7 +654,7 @@ export function generateEngineeringSitePlan(project: ProjectState) {
 
     project.walls.forEach((wall, idx) => {
       if (idx > 0 && idx % maxElevsPerPage === 0) {
-        doc.addPage('a3', 'landscape');
+        doc.addPage([420, 297], 'landscape');
         drawBorder(doc, w, h);
         doc.setFontSize(10);
         doc.setFont('helvetica', 'bold');
