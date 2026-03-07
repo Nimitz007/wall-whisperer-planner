@@ -3,7 +3,7 @@ import jsPDF from 'jspdf';
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
 import { Button } from '@/components/ui/button';
-import { FileText, Table, Image, Download } from 'lucide-react';
+import { FileText, Table, Download } from 'lucide-react';
 
 interface ExportGeneratorProps {
   project: ProjectState;
