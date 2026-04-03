@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { ProjectState, WALL_TYPE_LABELS, WallSegment, WallType } from '@/lib/types';
 import { getTotalWallLength, calculateDistance } from '@/lib/wallCalculations';
+import { BrandingConfig, brandingToRGB } from '@/lib/branding';
 
 // ─── COLOUR PALETTE ────────────────────────────────────────
 type RGB = [number, number, number];
@@ -136,13 +137,14 @@ function drawNorthArrow(doc: jsPDF, cx: number, cy: number) {
   doc.text('N', cx - 1.8, cy - 9);
 }
 
-function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState, sheetTitle: string) {
+function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState, branding: BrandingConfig | undefined, sheetTitle: string) {
+  const companyName = branding?.companyName ?? 'Wall Planner';
   const tbW = 125, tbH = 32;
   const tbX = w - 12 - tbW, tbY = h - 12 - tbH;
   // Header bar
   doc.setFillColor(...C.titleBg); doc.rect(tbX, tbY, tbW, 8, 'F');
   doc.setTextColor(...C.white); doc.setFontSize(7); doc.setFont('helvetica', 'bold');
-  doc.text('SIMPLE ENGINEERS', tbX + 3, tbY + 5.5);
+  doc.text(companyName.toUpperCase(), tbX + 3, tbY + 5.5);
   doc.setFontSize(5); doc.setFont('helvetica', 'normal');
   doc.text('Concept Planning Tool', tbX + 52, tbY + 5.5);
   // Info grid
@@ -165,12 +167,13 @@ function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState,
   doc.text('CONCEPT ONLY — NOT FOR CONSTRUCTION', tbX + 2, tbY + tbH + 3);
 }
 
-function drawDisclaimer(doc: jsPDF, w: number, h: number) {
+function drawDisclaimer(doc: jsPDF, w: number, h: number, branding?: BrandingConfig) {
+  const companyName = branding?.companyName ?? 'Wall Planner';
   const barW = w - 24 - 130;
   doc.setFillColor(250, 250, 250); doc.rect(12, h - 17, barW, 5, 'F');
   doc.setDrawColor(...C.border); doc.setLineWidth(0.15); doc.rect(12, h - 17, barW, 5, 'S');
   doc.setFontSize(4); doc.setTextColor(...C.textLight);
-  doc.text('DISCLAIMER: Preliminary concept only. Not for construction or council approval. Engineering certification required. © Simple Engineers', 14, h - 13.5);
+  doc.text(`DISCLAIMER: Preliminary concept only. Not for construction or council approval. Engineering certification required. \u00A9 ${companyName}`, 14, h - 13.5);
 }
 
 // ─── PLAN VIEW: NODE-TO-NODE DIMENSIONS ───────────────────
@@ -586,7 +589,7 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
 }
 
 // ─── MAIN EXPORT FUNCTION ─────────────────────────────────
-export async function generateEngineeringSitePlan(project: ProjectState, mapboxToken?: string) {
+export async function generateEngineeringSitePlan(project: ProjectState, mapboxToken?: string, branding?: BrandingConfig) {
   const doc = new jsPDF('landscape', 'mm', 'a3');
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
@@ -663,8 +666,8 @@ export async function generateEngineeringSitePlan(project: ProjectState, mapboxT
   }
 
   const totalSheets = 1 + project.walls.length;
-  drawTitleBlock(doc, w, h, project, `SITE PLAN — 1 of ${totalSheets}`);
-  drawDisclaimer(doc, w, h);
+  drawTitleBlock(doc, w, h, project, branding, `SITE PLAN — 1 of ${totalSheets}`);
+  drawDisclaimer(doc, w, h, branding);
 
   // ═══ PAGE 2+: WALL ELEVATIONS ════════════════════════════
   if (project.walls.length > 0) {
@@ -681,8 +684,8 @@ export async function generateEngineeringSitePlan(project: ProjectState, mapboxT
 
     project.walls.forEach((wall, idx) => {
       if (idx > 0) {
-        drawTitleBlock(doc, w, h, project, `ELEVATIONS — ${idx + 1} of ${project.walls.length + 1}`);
-        drawDisclaimer(doc, w, h);
+        drawTitleBlock(doc, w, h, project, branding, `ELEVATIONS — ${idx + 1} of ${project.walls.length + 1}`);
+        drawDisclaimer(doc, w, h, branding);
         doc.addPage([420, 297], 'landscape');
         drawBorder(doc, w, h);
         doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
@@ -696,8 +699,8 @@ export async function generateEngineeringSitePlan(project: ProjectState, mapboxT
       drawElevation(doc, wall, 50, baseY, elevAvailW, elevAvailH);
     });
 
-    drawTitleBlock(doc, w, h, project, `ELEVATIONS — ${totalSheets} of ${totalSheets}`);
-    drawDisclaimer(doc, w, h);
+    drawTitleBlock(doc, w, h, project, branding, `ELEVATIONS — ${totalSheets} of ${totalSheets}`);
+    drawDisclaimer(doc, w, h, branding);
   }
 
   doc.save(`concept-site-plan-${project.details.projectReference || 'export'}.pdf`);

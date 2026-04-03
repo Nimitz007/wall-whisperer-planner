@@ -6,6 +6,7 @@ import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
 import { Button } from '@/components/ui/button';
 import { FileText, Table, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface ExportGeneratorProps {
   project: ProjectState;
@@ -13,6 +14,7 @@ interface ExportGeneratorProps {
 }
 
 const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
+  const branding = useBranding();
   const [loadingSitePlan, setLoadingSitePlan] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingCSV, setLoadingCSV] = useState(false);
@@ -21,14 +23,14 @@ const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
     setLoadingSitePlan(true);
     toast.loading('Generating site plan...', { id: 'site-plan' });
     try {
-      await generateEngineeringSitePlan(project, mapboxToken);
+      await generateEngineeringSitePlan(project, mapboxToken, branding);
       toast.success('Site plan downloaded', { id: 'site-plan', description: 'A3 landscape PDF with wall layout' });
     } catch {
       toast.error('Failed to generate site plan', { id: 'site-plan' });
     } finally {
       setLoadingSitePlan(false);
     }
-  }, [project, mapboxToken]);
+  }, [project, mapboxToken, branding]);
 
   const generatePDFSummary = useCallback(() => {
     setLoadingSummary(true);
@@ -114,7 +116,7 @@ const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
         'This document is not for construction or council approval.',
         'Formal engineering design and certification are required before construction.',
         '',
-        '© Simple Engineers — Concept Planning Tool',
+        `© ${branding.companyName} — Concept Planning Tool`,
       ];
       let dy = 42;
       disclaimer.forEach(line => { doc.text(line, 15, dy); dy += 7; });
