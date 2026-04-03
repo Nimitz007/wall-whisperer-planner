@@ -3,8 +3,19 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength, generateWallName } from '@/lib/wallCalculations';
-import { Map, Pencil, Trash2, Undo2 } from 'lucide-react';
+import { Map, Pencil, Trash2, Undo2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { v4Fallback } from '@/lib/idUtils';
 
 interface MapCanvasProps {
@@ -30,6 +41,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
   const [mapStyle, setMapStyle] = useState<MapStyle>('streets');
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
+  const [wallToDelete, setWallToDelete] = useState<WallSegment | null>(null);
 
   // Initialize map
   useEffect(() => {
@@ -243,11 +255,23 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
     onActiveWallChange(newWall.id);
     setCurrentPoints([]);
     setIsDrawing(false);
+
+    toast.success(`${newWall.name} added`, {
+      description: `${length.toFixed(1)}m retaining wall`,
+    });
   };
 
-  const deleteWall = (id: string) => {
-    onWallsChange(walls.filter(w => w.id !== id));
-    if (activeWallId === id) onActiveWallChange(null);
+  const confirmDeleteWall = (wall: WallSegment) => {
+    setWallToDelete(wall);
+  };
+
+  const deleteWall = () => {
+    if (!wallToDelete) return;
+    const name = wallToDelete.name;
+    onWallsChange(walls.filter(w => w.id !== wallToDelete.id));
+    if (activeWallId === wallToDelete.id) onActiveWallChange(null);
+    setWallToDelete(null);
+    toast("Wall deleted", { description: `${name} has been removed` });
   };
 
   const undoLastPoint = () => {
@@ -256,7 +280,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
 
   if (!mapboxToken) {
     return (
-      <div className="flex h-[600px] items-center justify-center rounded-2xl border border-border bg-card shadow-card">
+      <div className="flex h-[400px] items-center justify-center rounded-2xl border border-border bg-card shadow-card lg:h-[600px]">
         <div className="text-center">
           <Map className="mx-auto mb-4 h-12 w-12 text-muted-foreground/40" />
           <p className="text-lg font-medium text-foreground">Map View</p>
@@ -270,22 +294,35 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
 
   return (
     <div className="relative">
-      {/* Map container */}
-      <div ref={mapContainer} className="h-[600px] w-full rounded-2xl shadow-card lg:h-[700px]" />
+      {/* Map container — responsive height */}
+      <div ref={mapContainer} className="h-[400px] w-full rounded-2xl shadow-card sm:h-[500px] lg:h-[700px]" />
+
+      {/* Empty state overlay when no address */}
+      {!center && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-2xl bg-background/60 backdrop-blur-[2px]">
+          <div className="text-center">
+            <MapPin className="mx-auto mb-3 h-10 w-10 text-muted-foreground/40" />
+            <p className="text-base font-medium text-foreground">Search for your property</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Use the search bar above to find your address
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Map controls overlay */}
-      <div className="absolute left-4 top-4 flex flex-col gap-2">
+      <div className="absolute left-3 top-3 flex flex-col gap-2 sm:left-4 sm:top-4">
         {/* Style toggle */}
         <div className="flex overflow-hidden rounded-lg border border-border bg-card shadow-card">
           <button
             onClick={() => setMapStyle('streets')}
-            className={`px-3 py-2 text-xs font-medium transition-colors ${mapStyle === 'streets' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-accent'}`}
+            className={`px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:px-3 sm:py-2 sm:text-xs ${mapStyle === 'streets' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-accent'}`}
           >
             Standard
           </button>
           <button
             onClick={() => setMapStyle('satellite')}
-            className={`px-3 py-2 text-xs font-medium transition-colors ${mapStyle === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-accent'}`}
+            className={`px-2.5 py-1.5 text-[11px] font-medium transition-colors sm:px-3 sm:py-2 sm:text-xs ${mapStyle === 'satellite' ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-accent'}`}
           >
             Satellite
           </button>
@@ -293,36 +330,39 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
       </div>
 
       {/* Drawing controls */}
-      <div className="absolute right-4 top-4 flex flex-col gap-2">
-        {!isDrawing ? (
-          <Button
-            onClick={() => setIsDrawing(true)}
-            size="sm"
-            className="gap-2 rounded-lg shadow-card"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Draw Wall
-          </Button>
-        ) : (
-          <>
-            <Button onClick={finishWall} size="sm" className="gap-2 rounded-lg shadow-card">
-              Finish Wall
+      {center && (
+        <div className="absolute right-3 top-3 flex flex-col gap-2 sm:right-4 sm:top-4">
+          {!isDrawing ? (
+            <Button
+              onClick={() => setIsDrawing(true)}
+              size="sm"
+              className="gap-2 rounded-lg shadow-card"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Draw Wall</span>
+              <span className="sm:hidden">Draw</span>
             </Button>
-            <Button onClick={undoLastPoint} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card" disabled={currentPoints.length === 0}>
-              <Undo2 className="h-3.5 w-3.5" />
-              Undo
-            </Button>
-            <Button onClick={() => { setCurrentPoints([]); setIsDrawing(false); }} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card">
-              Cancel
-            </Button>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <Button onClick={finishWall} size="sm" className="gap-2 rounded-lg shadow-card">
+                Finish Wall
+              </Button>
+              <Button onClick={undoLastPoint} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card" disabled={currentPoints.length === 0}>
+                <Undo2 className="h-3.5 w-3.5" />
+                Undo
+              </Button>
+              <Button onClick={() => { setCurrentPoints([]); setIsDrawing(false); }} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card">
+                Cancel
+              </Button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Drawing instructions */}
       {isDrawing && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-xl bg-card px-4 py-2.5 shadow-elevated">
-          <p className="text-sm font-medium text-foreground">
+        <div className="absolute bottom-3 left-1/2 max-w-[calc(100%-6rem)] -translate-x-1/2 rounded-xl bg-card px-3 py-2 shadow-elevated sm:bottom-4 sm:max-w-none sm:px-4 sm:py-2.5">
+          <p className="text-center text-xs font-medium text-foreground sm:text-sm">
             Click on the map to place wall points.{' '}
             {currentPoints.length >= 2 && (
               <span className="text-primary">
@@ -334,27 +374,46 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
       )}
 
       {/* Wall list */}
-      {walls.length > 0 && (
-        <div className="absolute bottom-4 left-4 max-w-xs space-y-1">
+      {walls.length > 0 && !isDrawing && (
+        <div className="absolute bottom-3 left-3 max-h-[140px] max-w-[200px] space-y-1 overflow-y-auto sm:bottom-4 sm:left-4 sm:max-h-none sm:max-w-xs">
           {walls.map(wall => (
             <div
               key={wall.id}
               onClick={() => onActiveWallChange(wall.id)}
-              className={`flex cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-sm shadow-card transition-colors ${
+              className={`flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-xs shadow-card transition-colors sm:px-3 sm:py-2 sm:text-sm ${
                 activeWallId === wall.id ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-accent'
               }`}
             >
               <span className="font-medium">{wall.name}: {wall.length.toFixed(1)}m</span>
               <button
-                onClick={(e) => { e.stopPropagation(); deleteWall(wall.id); }}
+                onClick={(e) => { e.stopPropagation(); confirmDeleteWall(wall); }}
                 className="ml-2 opacity-60 hover:opacity-100"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               </button>
             </div>
           ))}
         </div>
       )}
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!wallToDelete} onOpenChange={(open) => !open && setWallToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {wallToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {wallToDelete?.name} ({wallToDelete?.length.toFixed(1)}m) from your plan.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteWall} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Wall
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

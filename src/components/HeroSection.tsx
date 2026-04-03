@@ -1,12 +1,15 @@
 import { motion } from 'framer-motion';
 import { ArrowDown, Shield, Ruler, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBranding } from '@/contexts/BrandingContext';
 
 interface HeroSectionProps {
   onStartPlanning: () => void;
 }
 
 const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
+  const branding = useBranding();
+
   return (
     <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden bg-background">
       {/* Subtle grid pattern */}
@@ -22,9 +25,13 @@ const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
           transition={{ duration: 0.6 }}
         >
           {/* Brand */}
-          <p className="mb-6 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            Simple Engineers
-          </p>
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={branding.companyName} className="mx-auto mb-6 h-10 object-contain" />
+          ) : (
+            <p className="mb-6 text-sm font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              {branding.companyName}
+            </p>
+          )}
 
           {/* Headline */}
           <h1 className="font-display text-5xl font-bold leading-[1.1] tracking-tight text-foreground md:text-7xl">

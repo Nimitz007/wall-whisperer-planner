@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import AddressSearch from "./AddressSearch";
 import MapCanvas from "./MapCanvas";
 import WallEditorPanel from "./WallEditorPanel";
@@ -11,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
 const MAPBOX_TOKEN = "pk.eyJ1IjoidXBsaWZ0YmEiLCJhIjoiY21rMHA3MXc2NzdnbTNjcTJzd2R1aW9jOCJ9.AbKUSzkWQp2MKowmen69LA";
 // Replace with your actual Mapbox public token
@@ -84,6 +86,53 @@ const PlannerSection = () => {
     setProject((p) => ({ ...p, currentStep: step }));
   };
 
+  // Step validation: determine which steps are accessible
+  const hasAddress = !!project.details.address;
+  const hasWalls = project.walls.length > 0;
+
+  const isStepAccessible = (step: number): boolean => {
+    switch (step) {
+      case 0: return true; // Property always accessible
+      case 1: return hasAddress; // Draw requires address
+      case 2: return hasAddress && hasWalls; // Settings requires walls
+      case 3: return hasAddress; // Context accessible after address
+      case 4: return hasAddress && hasWalls; // Summary requires walls
+      case 5: return hasAddress && hasWalls; // Export requires walls
+      default: return false;
+    }
+  };
+
+  const isStepComplete = (step: number): boolean => {
+    switch (step) {
+      case 0: return hasAddress;
+      case 1: return hasWalls;
+      case 2: return hasWalls && project.walls.every(w => w.averageHeight > 0);
+      case 3: return true; // Context is optional
+      case 4: return hasWalls;
+      case 5: return project.isPaid;
+      default: return false;
+    }
+  };
+
+  const handleStepClick = (step: number) => {
+    if (isStepAccessible(step)) {
+      setStep(step);
+    }
+  };
+
+  const goNext = () => {
+    const next = project.currentStep + 1;
+    if (next < STEPS.length && isStepAccessible(next)) setStep(next);
+  };
+
+  const goBack = () => {
+    const prev = project.currentStep - 1;
+    if (prev >= 0) setStep(prev);
+  };
+
+  // Email validation
+  const isEmailValid = !project.details.clientEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
+
   return (
     <section id="planner" className="bg-background pb-20">
       <div className="container max-w-7xl px-4">
@@ -94,6 +143,9 @@ const PlannerSection = () => {
             onSelect={(result) => {
               updateDetails(result);
               setStep(1);
+              toast.success("Property found", {
+                description: result.address,
+              });
             }}
           />
         </div>
@@ -116,24 +168,45 @@ const PlannerSection = () => {
           <div className="order-2 lg:sticky lg:top-6 lg:self-start">
             <div className="rounded-2xl border border-border bg-card shadow-card">
               {/* Step nav */}
-              <div className="flex overflow-x-auto border-b border-border">
+              <div className="flex overflow-x-auto border-b border-border scrollbar-hide">
                 {STEPS.map((step, i) => {
                   const Icon = step.icon;
+                  const accessible = isStepAccessible(i);
+                  const complete = isStepComplete(i);
+                  const active = project.currentStep === i;
                   return (
                     <button
                       key={i}
-                      onClick={() => setStep(i)}
-                      className={`flex flex-1 flex-col items-center gap-1 px-3 py-3 text-[10px] font-medium transition-colors ${
-                        project.currentStep === i
+                      onClick={() => handleStepClick(i)}
+                      disabled={!accessible}
+                      className={`relative flex flex-1 flex-col items-center gap-1 px-3 py-3 text-[10px] font-medium transition-colors ${
+                        active
                           ? "border-b-2 border-primary text-primary"
-                          : "text-muted-foreground hover:text-foreground"
+                          : accessible
+                          ? "text-muted-foreground hover:text-foreground"
+                          : "cursor-not-allowed text-muted-foreground/40"
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
+                      <div className="relative">
+                        <Icon className="h-4 w-4" />
+                        {complete && !active && (
+                          <div className="absolute -right-1.5 -top-1.5 flex h-3 w-3 items-center justify-center rounded-full bg-primary">
+                            <Check className="h-2 w-2 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
                       {step.label}
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Progress bar */}
+              <div className="h-1 bg-muted">
+                <div
+                  className="h-full bg-primary transition-all duration-500 ease-out"
+                  style={{ width: `${((project.currentStep + 1) / STEPS.length) * 100}%` }}
+                />
               </div>
 
               {/* Step content */}
@@ -175,8 +248,11 @@ const PlannerSection = () => {
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
                           placeholder="email@example.com"
-                          className="rounded-lg"
+                          className={`rounded-lg ${!isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         />
+                        {!isEmailValid && (
+                          <p className="text-xs text-destructive">Please enter a valid email address</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-sm">Phone</Label>
@@ -212,6 +288,7 @@ const PlannerSection = () => {
                       <div className="rounded-lg border border-dashed border-border bg-muted/50 p-6 text-center">
                         <Pencil className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
                         <p className="text-sm text-muted-foreground">No walls drawn yet</p>
+                        <p className="mt-1 text-xs text-muted-foreground/60">Click "Draw Wall" on the map to begin</p>
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -240,13 +317,36 @@ const PlannerSection = () => {
                     {activeWall ? (
                       <WallEditorPanel wall={activeWall} onChange={updateWall} />
                     ) : project.walls.length > 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        Select a wall from the map or the Draw tab to edit its settings.
-                      </p>
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Select a wall to edit its settings.
+                        </p>
+                        <div className="space-y-2">
+                          {project.walls.map((wall) => (
+                            <button
+                              key={wall.id}
+                              onClick={() => setActiveWallId(wall.id)}
+                              className="w-full rounded-lg bg-muted px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-accent"
+                            >
+                              <span className="font-medium">{wall.name}</span>
+                              <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">
-                        Draw walls first, then configure their settings here.
-                      </p>
+                      <div className="rounded-lg border border-dashed border-border bg-muted/50 p-6 text-center">
+                        <Pencil className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">No walls drawn yet</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3"
+                          onClick={() => setStep(1)}
+                        >
+                          Go to Draw
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}
@@ -343,6 +443,37 @@ const PlannerSection = () => {
                     )}
                   </div>
                 )}
+
+                {/* Next / Back navigation */}
+                <div className="mt-6 flex items-center justify-between border-t border-border pt-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={goBack}
+                    disabled={project.currentStep === 0}
+                    className="gap-1.5 text-muted-foreground"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Back
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    Step {project.currentStep + 1} of {STEPS.length}
+                  </span>
+                  {project.currentStep < STEPS.length - 1 && (
+                    <Button
+                      size="sm"
+                      onClick={goNext}
+                      disabled={!isStepAccessible(project.currentStep + 1)}
+                      className="gap-1.5"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {project.currentStep === STEPS.length - 1 && (
+                    <div className="w-[72px]" /> // Spacer to keep layout balanced
+                  )}
+                </div>
               </div>
             </div>
           </div>
