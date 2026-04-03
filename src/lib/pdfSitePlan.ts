@@ -253,12 +253,12 @@ function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawAr
 }
 
 // ─── WALL SCHEDULE TABLE ──────────────────────────────────
-function drawWallSchedule(doc: jsPDF, walls: WallSegment[], x: number, y: number) {
+function drawWallSchedule(doc: jsPDF, walls: WallSegment[], x: number, y: number, maxW?: number) {
   doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
   doc.text('WALL SCHEDULE', x, y); y += 4;
-  const cols = [17, 42, 14, 13, 13, 10, 10, 10];
+  const cols = [17, 55, 14, 13, 13, 10, 10, 10];
   const hdrs = ['REF', 'TYPE', 'LEN', 'AVG H', 'MAX H', 'SRCH', 'FNCE', 'DRN'];
-  const tw = cols.reduce((a, b) => a + b, 0);
+  const tw = Math.min(cols.reduce((a, b) => a + b, 0), maxW || 999);
   doc.setFillColor(...C.titleBg); doc.rect(x, y, tw, 4.5, 'F');
   doc.setTextColor(...C.white); doc.setFontSize(4.5); doc.setFont('helvetica', 'bold');
   let cx = x; hdrs.forEach((h, i) => { doc.text(h, cx + 1, y + 3.2); cx += cols[i]; }); y += 4.5;
@@ -267,7 +267,7 @@ function drawWallSchedule(doc: jsPDF, walls: WallSegment[], x: number, y: number
     if (idx % 2 === 0) { doc.setFillColor(245, 245, 245); doc.rect(x, y, tw, 4, 'F'); }
     doc.setDrawColor(220, 220, 220); doc.setLineWidth(0.08); doc.rect(x, y, tw, 4);
     cx = x;
-    [wall.name, WALL_TYPE_LABELS[wall.wallType].substring(0, 22), wall.length.toFixed(1),
+    [wall.name, WALL_TYPE_LABELS[wall.wallType], wall.length.toFixed(1),
      wall.averageHeight.toString(), wall.maxHeight.toString(),
      wall.hasSurcharge ? 'Y' : 'N', wall.hasFenceAbove ? 'Y' : 'N', wall.hasDrainageRequired ? 'Y' : 'N'
     ].forEach((v, i) => { doc.text(v, cx + 1, y + 2.8); cx += cols[i]; });
@@ -296,12 +296,12 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
   const wallLen = wall.length || 3;
   const wallH = wall.maxHeight || 1;
   const totalVisH = wallH + 1.0; // include footing
-  const hScale = (availW * 0.5) / wallLen;
-  const vScale = (availH * 0.7) / totalVisH;
-  const scale = Math.min(hScale, vScale, 12); // cap scale
-  const wW = wallLen * scale;
-  const wH = wallH * scale;
-  const footH = 0.4 * scale;
+  // Use separate horizontal and vertical scales for clarity
+  const hScale = Math.min((availW * 0.55) / wallLen, 25);
+  const vScale = Math.min((availH * 0.45) / totalVisH, 60);
+  const wW = wallLen * hScale;
+  const wH = wallH * vScale;
+  const footH = Math.min(0.4 * vScale, 8);
   const wallColors = getWallColors(wall.wallType);
   const groundY = baseY;
 
@@ -334,12 +334,11 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
   // ── Wall stem (type-specific rendering) ──
   doc.setFillColor(...wallColors.fill); doc.setDrawColor(...wallColors.stroke); doc.setLineWidth(0.4);
 
-  const stemThickness = Math.max(wW, 5); // visual thickness for elevation view
+  const stemThickness = Math.max(wW, 5); // visual width for elevation view
 
   switch (wall.wallType) {
     case 'concrete-sleeper': {
       // Draw individual 200mm sleeper courses
-      const courseH = 0.2 * scale;
       const numCourses = Math.max(1, Math.round(wallH / 0.2));
       const actualCourseH = wH / numCourses;
       for (let c = 0; c < numCourses; c++) {
@@ -360,10 +359,9 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
     }
     case 'reinforced-masonry': {
       // Draw block courses (200mm blocks)
-      const courseH = 0.2 * scale;
       const numCourses = Math.max(1, Math.round(wallH / 0.2));
       const actualCourseH = wH / numCourses;
-      const blockW = 0.4 * scale;
+      const blockW = Math.max(0.4 * hScale, 4);
       for (let c = 0; c < numCourses; c++) {
         const cy = groundY - (c + 1) * actualCourseH;
         const offsetX = (c % 2) * blockW * 0.5; // stagger
@@ -387,11 +385,12 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
       doc.rect(ox, groundY - wH, stemThickness, wH, 'FD');
       // Cross-hatch for concrete
       doc.setDrawColor(170, 170, 170); doc.setLineWidth(0.08);
-      for (let hy = groundY - wH; hy < groundY; hy += 2.5) {
-        doc.line(ox, hy, ox + stemThickness, hy + 2.5);
+      const hatchStep = Math.max(wH / 12, 2.5);
+      for (let hy = groundY - wH; hy < groundY; hy += hatchStep) {
+        doc.line(ox, hy, ox + stemThickness, hy + hatchStep);
       }
-      for (let hy = groundY - wH; hy < groundY; hy += 2.5) {
-        doc.line(ox + stemThickness, hy, ox, hy + 2.5);
+      for (let hy = groundY - wH; hy < groundY; hy += hatchStep) {
+        doc.line(ox + stemThickness, hy, ox, hy + hatchStep);
       }
       // Rebar dots
       doc.setFillColor(60, 60, 60);
@@ -404,7 +403,6 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
     }
     case 'timber': {
       // Horizontal timber rails
-      const railH = 0.2 * scale;
       const numRails = Math.max(1, Math.round(wallH / 0.2));
       const actualRailH = wH / numRails;
       for (let r = 0; r < numRails; r++) {
@@ -426,7 +424,6 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
     }
     case 'gabion': {
       // Gabion baskets stacked
-      const basketH = 1.0 * scale;
       const numRows = Math.max(1, Math.round(wallH / 1.0));
       const actualBH = wH / numRows;
       for (let r = 0; r < numRows; r++) {
@@ -444,8 +441,9 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
         }
         // Stone fill circles
         doc.setFillColor(160, 160, 160);
-        for (let sy = ry + 1.5; sy < ry + actualBH - 1; sy += 3) {
-          for (let sx = ox + 2; sx < ox + stemThickness - 1; sx += 3.5) {
+        const stoneStep = Math.max(actualBH / 5, 3);
+        for (let sy = ry + 1.5; sy < ry + actualBH - 1; sy += stoneStep) {
+          for (let sx = ox + 2; sx < ox + stemThickness - 1; sx += stoneStep * 1.2) {
             const r2 = 0.5 + Math.random() * 0.5;
             doc.circle(sx, sy, r2, 'FD');
           }
@@ -464,17 +462,19 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
   }
 
   // ── Retained soil (right side) ──
-  const soilW = Math.min(20, availW * 0.15);
+  const soilW = Math.min(30, availW * 0.15);
   doc.setFillColor(...C.soilFill); doc.setDrawColor(...C.soil); doc.setLineWidth(0.3);
   // Soil profile as rectangle behind wall going up
   doc.rect(ox + stemThickness, groundY - wH, soilW, wH, 'FD');
   // Sloped top surface
   doc.setFillColor(...C.soilFill);
-  doc.triangle(ox + stemThickness + soilW, groundY - wH, ox + stemThickness + soilW, groundY, ox + stemThickness + soilW + 8, groundY, 'FD');
+  const slopeRun = Math.min(15, wH * 0.8);
+  doc.triangle(ox + stemThickness + soilW, groundY - wH, ox + stemThickness + soilW, groundY, ox + stemThickness + soilW + slopeRun, groundY, 'FD');
   // Soil dot pattern
   doc.setFillColor(...C.soil);
-  for (let sy = groundY - wH + 2; sy < groundY - 1; sy += 3) {
-    for (let sx = ox + stemThickness + 2; sx < ox + stemThickness + soilW - 1; sx += 3) {
+  const dotStep = Math.max(wH / 12, 3);
+  for (let sy = groundY - wH + 2; sy < groundY - 1; sy += dotStep) {
+    for (let sx = ox + stemThickness + 2; sx < ox + stemThickness + soilW - 1; sx += dotStep) {
       doc.circle(sx, sy, 0.25, 'F');
     }
   }
@@ -507,7 +507,7 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
 
   // ── Fence (only if hasFenceAbove) ──
   if (wall.hasFenceAbove) {
-    const fenceH = 5;
+    const fenceH = Math.min(wH * 0.4, 12);
     doc.setDrawColor(...C.fence); doc.setLineWidth(0.35);
     // Posts
     const numPosts = Math.max(2, Math.ceil(stemThickness / 12));
@@ -574,8 +574,15 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
   details.forEach(d => { doc.text(d, annX, annY); annY += 3.5; });
   if (wall.notes) { doc.text(`Notes: ${wall.notes}`, annX, annY); annY += 3.5; }
 
-  const fenceExtra = wall.hasFenceAbove ? 8 : 0;
-  return wH + footH + fenceExtra + 25;
+  // ── Vertical exaggeration note ──
+  if (Math.abs(vScale / hScale - 1) > 0.3) {
+    const exagg = (vScale / hScale).toFixed(1);
+    doc.setFontSize(4); doc.setFont('helvetica', 'italic'); doc.setTextColor(...C.textLight);
+    doc.text(`Note: Vertical exaggeration ${exagg}x for clarity`, ox, groundY + footH + 12);
+  }
+
+  const fenceExtra = wall.hasFenceAbove ? Math.min(wH * 0.4, 12) + 4 : 0;
+  return wH + footH + fenceExtra + 30;
 }
 
 // ─── MAIN EXPORT FUNCTION ─────────────────────────────────
@@ -655,7 +662,8 @@ export async function generateEngineeringSitePlan(project: ProjectState, mapboxT
     doc.text('No wall segments drawn — plan view unavailable', w / 2 - 55, h / 2);
   }
 
-  drawTitleBlock(doc, w, h, project, 'SITE PLAN — 1 of 2');
+  const totalSheets = 1 + project.walls.length;
+  drawTitleBlock(doc, w, h, project, `SITE PLAN — 1 of ${totalSheets}`);
   drawDisclaimer(doc, w, h);
 
   // ═══ PAGE 2+: WALL ELEVATIONS ════════════════════════════
@@ -667,34 +675,28 @@ export async function generateEngineeringSitePlan(project: ProjectState, mapboxT
     doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.textLight);
     doc.text('PRELIMINARY CONCEPT ONLY — NOT FOR CONSTRUCTION — ENGINEERING CERTIFICATION REQUIRED', 18, 24);
 
-    const maxPerPage = 2;
-    let elevY = 50;
-    const elevAvailW = w - 50;
-    const elevAvailH = (h - 85) / Math.min(project.walls.length, maxPerPage);
+    // One wall per page for better use of space
+    const elevAvailW = w - 80;
+    const elevAvailH = h - 100;
 
     project.walls.forEach((wall, idx) => {
-      if (idx > 0 && idx % maxPerPage === 0) {
-        drawTitleBlock(doc, w, h, project, `ELEVATIONS — ${Math.floor(idx / maxPerPage) + 1}`);
+      if (idx > 0) {
+        drawTitleBlock(doc, w, h, project, `ELEVATIONS — ${idx + 1} of ${project.walls.length + 1}`);
         drawDisclaimer(doc, w, h);
         doc.addPage([420, 297], 'landscape');
         drawBorder(doc, w, h);
         doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...C.text);
-        doc.text('CONCEPT RETAINING WALL — ELEVATIONS (CONT.)', 18, 20);
-        elevY = 50;
+        doc.text('CONCEPT RETAINING WALL — ELEVATIONS', 18, 20);
+        doc.setFontSize(5.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...C.textLight);
+        doc.text('PRELIMINARY CONCEPT ONLY — NOT FOR CONSTRUCTION — ENGINEERING CERTIFICATION REQUIRED', 18, 24);
       }
 
-      if (idx % maxPerPage > 0) {
-        doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.15);
-        doc.setLineDashPattern([3, 2], 0);
-        doc.line(18, elevY - 5, w - 18, elevY - 5);
-        doc.setLineDashPattern([], 0);
-      }
-
-      const usedH = drawElevation(doc, wall, 35, elevY + Math.min(elevAvailH * 0.55, 50), elevAvailW, elevAvailH);
-      elevY += Math.max(usedH, elevAvailH);
+      // Center the elevation vertically on the page
+      const baseY = 55 + elevAvailH * 0.5;
+      drawElevation(doc, wall, 50, baseY, elevAvailW, elevAvailH);
     });
 
-    drawTitleBlock(doc, w, h, project, 'ELEVATIONS — 2 of 2');
+    drawTitleBlock(doc, w, h, project, `ELEVATIONS — ${totalSheets} of ${totalSheets}`);
     drawDisclaimer(doc, w, h);
   }
 
