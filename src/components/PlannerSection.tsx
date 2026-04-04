@@ -160,13 +160,17 @@ const PlannerSection = () => {
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           {/* Map */}
           <div className="order-1">
-            <MapCanvas
-              center={mapCenter}
-              walls={project.walls}
-              onWallsChange={updateWalls}
-              activeWallId={activeWallId}
-              onActiveWallChange={setActiveWallId}
-            />
+             <MapCanvas
+               center={mapCenter}
+               walls={project.walls}
+               onWallsChange={updateWalls}
+               activeWallId={activeWallId}
+               onActiveWallChange={setActiveWallId}
+               isDrawing={isDrawing}
+               onIsDrawingChange={setIsDrawing}
+               currentPoints={currentPoints}
+               onCurrentPointsChange={setCurrentPoints}
+             />
           </div>
 
           {/* Side panel */}
