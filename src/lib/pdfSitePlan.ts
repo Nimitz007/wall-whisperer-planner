@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { ProjectState, WALL_TYPE_LABELS, WallSegment } from '@/lib/types';
+import { ProjectState, WallSegment } from '@/lib/types';
 import { calculateDistance } from '@/lib/wallCalculations';
 import { BrandingConfig } from '@/lib/branding';
 
@@ -623,7 +623,8 @@ function drawSteppedElevation(
 
   // ── Fence above ──
   if (wall.hasFenceAbove) {
-    const fenceH = Math.min(1.5 * vScale, 15);
+    const fenceRealH = wall.fenceHeight || 1.5; // metres
+    const fenceH = fenceRealH * vScale;
     doc.setDrawColor(...C.black); doc.setLineWidth(0.25);
     const numPosts = Math.max(2, Math.ceil(wW / 10));
     const postSpacing = wW / (numPosts - 1);
@@ -633,6 +634,18 @@ function drawSteppedElevation(
     }
     doc.line(ox, groundY - maxHPixels - fenceH, ox + wW, groundY - maxHPixels - fenceH);
     doc.line(ox, groundY - maxHPixels - fenceH * 0.5, ox + wW, groundY - maxHPixels - fenceH * 0.5);
+
+    // Fence height dimension on right
+    const fDimX = ox + wW + 5;
+    doc.setLineWidth(0.12);
+    doc.line(fDimX, groundY - maxHPixels, fDimX, groundY - maxHPixels - fenceH);
+    doc.line(fDimX - 1, groundY - maxHPixels, ox + wW + 1, groundY - maxHPixels);
+    doc.line(fDimX - 1, groundY - maxHPixels - fenceH, ox + wW + 1, groundY - maxHPixels - fenceH);
+    doc.setFillColor(...C.black);
+    doc.triangle(fDimX, groundY - maxHPixels, fDimX - 0.4, groundY - maxHPixels - 0.8, fDimX + 0.4, groundY - maxHPixels - 0.8, 'F');
+    doc.triangle(fDimX, groundY - maxHPixels - fenceH, fDimX - 0.4, groundY - maxHPixels - fenceH + 0.8, fDimX + 0.4, groundY - maxHPixels - fenceH + 0.8, 'F');
+    doc.setFontSize(4); doc.setFont(FONT, 'normal'); doc.setTextColor(...C.black);
+    doc.text(Math.round(fenceRealH * 1000).toString(), fDimX + 1, groundY - maxHPixels - fenceH / 2 + 1);
   }
 
   // ── Wall label box ──

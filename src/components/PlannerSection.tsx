@@ -352,6 +352,7 @@ const PlannerSection = () => {
                                 offsetFromBoundary: 0,
                                 hasSurcharge: false,
                                 hasFenceAbove: false,
+                                fenceHeight: 1.5,
                                 hasDrainageRequired: true,
                                 onBoundary: false,
                                 notes: '',

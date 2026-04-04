@@ -1,4 +1,5 @@
 import { WallSegment, WallType, WALL_TYPE_LABELS } from '@/lib/types';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -62,8 +63,22 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-sm text-foreground">Fence above?</Label>
-          <Switch checked={wall.hasFenceAbove} onCheckedChange={(v) => update({ hasFenceAbove: v })} />
+          <Switch checked={wall.hasFenceAbove} onCheckedChange={(v) => update({ hasFenceAbove: v, fenceHeight: v ? (wall.fenceHeight || 1.5) : 0 })} />
         </div>
+        {wall.hasFenceAbove && (
+          <div className="flex items-center justify-between pl-2">
+            <Label className="text-sm text-muted-foreground">Fence height (m)</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0.3"
+              max="3"
+              value={wall.fenceHeight || 1.5}
+              onChange={(e) => update({ fenceHeight: parseFloat(e.target.value) || 1.5 })}
+              className="w-20 h-8 text-sm"
+            />
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <Label className="text-sm text-foreground">Driveway or building surcharge?</Label>
           <Switch checked={wall.hasSurcharge} onCheckedChange={(v) => update({ hasSurcharge: v })} />
