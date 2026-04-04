@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow, OverlayViewF, OverlayView } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength } from '@/lib/wallCalculations';
 import { Map, MapPin } from 'lucide-react';
@@ -113,6 +113,8 @@ const MapCanvas = ({
   const [snapTarget, setSnapTarget] = useState<WallPoint | null>(null);
   const [heightPrompt, setHeightPrompt] = useState<{ point: WallPoint; index: number } | null>(null);
   const [heightInput, setHeightInput] = useState('');
+  const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
+  const [editHeightInput, setEditHeightInput] = useState('');
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -313,6 +315,16 @@ const MapCanvas = ({
           {walls.map((wall) => {
             const isActive = wall.id === activeWallId;
             const path = wall.points.map((p) => ({ lat: p.lat, lng: p.lng }));
+            // Calculate midpoint and rotation for wall label
+            const midIdx = Math.floor((wall.points.length - 1) / 2);
+            const midP1 = wall.points[midIdx];
+            const midP2 = wall.points[Math.min(midIdx + 1, wall.points.length - 1)];
+            const midLat = (midP1.lat + midP2.lat) / 2;
+            const midLng = (midP1.lng + midP2.lng) / 2;
+            const angleDeg = Math.atan2(midP2.lat - midP1.lat, midP2.lng - midP1.lng) * (180 / Math.PI);
+            // Normalize rotation so text is never upside-down
+            const rotation = angleDeg > 90 ? angleDeg - 180 : angleDeg < -90 ? angleDeg + 180 : angleDeg;
+
             return (
               <div key={wall.id}>
                 <Polyline
@@ -333,6 +345,10 @@ const MapCanvas = ({
                     onDragEnd={(e) => {
                       if (e.latLng) handleNodeDragEnd(wall.id, i, e.latLng);
                     }}
+                    onClick={() => {
+                      setSelectedNode({ wallId: wall.id, pointIndex: i });
+                      setEditHeightInput(String(p.height || ''));
+                    }}
                     icon={{
                       path: google.maps.SymbolPath.CIRCLE,
                       scale: 6,
@@ -343,32 +359,92 @@ const MapCanvas = ({
                     }}
                   />
                 ))}
-                {/* Height labels at each point */}
-                {wall.points.map((p, i) => (
-                  p.height && p.height > 0 ? (
-                    <InfoWindow
-                      key={`${wall.id}-height-${i}`}
-                      position={{ lat: p.lat, lng: p.lng }}
-                      options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -20) }}
-                    >
-                      <div style={{ padding: '1px 4px', fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.7)', borderRadius: '3px', whiteSpace: 'nowrap' }}>
-                        {p.height}m
-                      </div>
-                    </InfoWindow>
-                  ) : null
-                ))}
-                {wall.points.length >= 2 && (
+                {/* Selected node height editor */}
+                {selectedNode && selectedNode.wallId === wall.id && wall.points[selectedNode.pointIndex] && (
                   <InfoWindow
-                    position={(() => {
-                      const mid = Math.floor(wall.points.length / 2);
-                      return { lat: wall.points[mid].lat, lng: wall.points[mid].lng };
-                    })()}
+                    position={{ lat: wall.points[selectedNode.pointIndex].lat, lng: wall.points[selectedNode.pointIndex].lng }}
                     options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -15) }}
+                    onCloseClick={() => setSelectedNode(null)}
                   >
-                    <div style={{ padding: '2px 6px', fontSize: '12px', fontWeight: 600, color: LIME_GREEN_DARK, whiteSpace: 'nowrap' }}>
-                      {wall.name}: {wall.length.toFixed(1)}m
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder="0.0"
+                        value={editHeightInput}
+                        onChange={(e) => setEditHeightInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const h = parseFloat(editHeightInput) || 0;
+                            const updated = walls.map((w) => {
+                              if (w.id !== selectedNode.wallId) return w;
+                              const pts = [...w.points];
+                              pts[selectedNode.pointIndex] = { ...pts[selectedNode.pointIndex], height: h };
+                              const heights = pts.map((pt) => pt.height || 0).filter((v) => v > 0);
+                              return {
+                                ...w,
+                                points: pts,
+                                averageHeight: heights.length ? heights.reduce((a, b) => a + b, 0) / heights.length : 0,
+                                maxHeight: heights.length ? Math.max(...heights) : 0,
+                              };
+                            });
+                            onWallsChange(updated);
+                            setSelectedNode(null);
+                          }
+                        }}
+                        style={{ width: '50px', padding: '2px 4px', fontSize: '11px', border: '1px solid #ccc', borderRadius: '3px', outline: 'none' }}
+                        autoFocus
+                      />
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: '#333' }}>m</span>
+                      <button
+                        onClick={() => {
+                          const h = parseFloat(editHeightInput) || 0;
+                          const updated = walls.map((w) => {
+                            if (w.id !== selectedNode.wallId) return w;
+                            const pts = [...w.points];
+                            pts[selectedNode.pointIndex] = { ...pts[selectedNode.pointIndex], height: h };
+                            const heights = pts.map((pt) => pt.height || 0).filter((v) => v > 0);
+                            return {
+                              ...w,
+                              points: pts,
+                              averageHeight: heights.length ? heights.reduce((a, b) => a + b, 0) / heights.length : 0,
+                              maxHeight: heights.length ? Math.max(...heights) : 0,
+                            };
+                          });
+                          onWallsChange(updated);
+                          setSelectedNode(null);
+                        }}
+                        style={{ padding: '2px 6px', fontSize: '10px', fontWeight: 600, background: LIME_GREEN, color: '#fff', border: 'none', borderRadius: '3px', cursor: 'pointer' }}
+                      >
+                        ✓
+                      </button>
                     </div>
                   </InfoWindow>
+                )}
+                {/* Wall name label - compact, parallel to wall */}
+                {wall.points.length >= 2 && (
+                  <OverlayViewF
+                    position={{ lat: midLat, lng: midLng }}
+                    mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                  >
+                    <div
+                      style={{
+                        transform: `translate(-50%, -50%) rotate(${-rotation}deg)`,
+                        padding: '1px 6px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#fff',
+                        background: 'rgba(0,0,0,0.7)',
+                        borderRadius: '3px',
+                        whiteSpace: 'nowrap',
+                        pointerEvents: 'none',
+                        lineHeight: '16px',
+                      }}
+                    >
+                      {wall.name}: {wall.length.toFixed(1)}m
+                    </div>
+                  </OverlayViewF>
                 )}
               </div>
             );
