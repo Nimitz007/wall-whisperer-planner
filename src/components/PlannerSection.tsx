@@ -24,7 +24,6 @@ import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 const STEPS = [
   { label: "Property", icon: MapPin },
   { label: "Draw", icon: Pencil },
-  { label: "Context", icon: Compass },
   { label: "Summary", icon: BarChart3 },
   { label: "Export", icon: CreditCard },
 ];
