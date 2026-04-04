@@ -129,11 +129,16 @@ const MapCanvas = ({
     map.setMapTypeId('hybrid');
   }, []);
 
-  // Fly to center when it changes
+  // Fly to center when a new address is selected
+  const lastCenterRef = useRef<string | null>(null);
   useEffect(() => {
     if (mapRef.current && center) {
-      mapRef.current.panTo({ lat: center[1], lng: center[0] });
-      mapRef.current.setZoom(20);
+      const key = `${center[0]},${center[1]}`;
+      if (lastCenterRef.current !== key) {
+        lastCenterRef.current = key;
+        mapRef.current.panTo({ lat: center[1], lng: center[0] });
+        mapRef.current.setZoom(20);
+      }
     }
   }, [center]);
 
