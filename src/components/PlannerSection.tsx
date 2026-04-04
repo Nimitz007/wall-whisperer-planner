@@ -252,47 +252,47 @@ const PlannerSection = () => {
                       Client Information
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Full Name <span className="text-destructive">*</span></Label>
-                        <Input
+                    <div className="space-y-4">
+                      <div>
+                        <FloatingInput
+                          id="clientName"
+                          label="Full Name"
                           value={project.details.clientName}
                           onChange={(e) => updateDetails({ clientName: e.target.value })}
-                          placeholder="Full Name"
-                          className={`rounded-lg ${triedNext && !isFullName ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={triedNext && !isFullName ? "border-destructive ring-1 ring-destructive" : ""}
                           required
                         />
                         {triedNext && !isFullName && (
-                          <p className="text-xs text-destructive">Please enter first and last name</p>
+                          <p className="text-xs text-destructive mt-1">Please enter first and last name</p>
                         )}
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Email <span className="text-destructive">*</span></Label>
-                        <Input
+                      <div>
+                        <FloatingInput
+                          id="clientEmail"
+                          label="Email"
                           type="email"
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
-                          placeholder="email@example.com"
-                          className={`rounded-lg ${triedNext && !isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={triedNext && !isEmailValid ? "border-destructive ring-1 ring-destructive" : ""}
                           required
                         />
                         {triedNext && !isEmailValid && (
-                          <p className="text-xs text-destructive">Please enter a valid email address</p>
+                          <p className="text-xs text-destructive mt-1">Please enter a valid email address</p>
                         )}
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Phone <span className="text-destructive">*</span></Label>
-                        <Input
+                      <div>
+                        <FloatingInput
+                          id="clientPhone"
+                          label="Phone"
                           type="tel"
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
-                          placeholder="04XX XXX XXX"
-                          className={`rounded-lg ${triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive ring-1 ring-destructive" : ""}
                           required
                           maxLength={14}
                         />
                         {triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
-                          <p className="text-xs text-destructive">Phone must be exactly 10 digits</p>
+                          <p className="text-xs text-destructive mt-1">Phone must be exactly 10 digits</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 pt-1">
@@ -304,13 +304,12 @@ const PlannerSection = () => {
                         <Label htmlFor="isBuilder" className="text-sm cursor-pointer">I am a builder</Label>
                       </div>
                       {project.details.isBuilder && (
-                        <div className="space-y-1.5">
-                          <Label className="text-sm">Company Name</Label>
-                          <Input
+                        <div>
+                          <FloatingInput
+                            id="companyName"
+                            label="Company Name"
                             value={project.details.companyName}
                             onChange={(e) => updateDetails({ companyName: e.target.value })}
-                            placeholder="Building company name"
-                            className="rounded-lg"
                           />
                         </div>
                       )}
