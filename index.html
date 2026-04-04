@@ -3,37 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wall Planner — Concept Retaining Wall Tool</title>
-    <meta name="description" content="Plan your retaining wall visually. Search your property, sketch walls, and export a concept site plan." />
+    <title>Retaining Wall Planner — Simple Engineers</title>
+    <meta name="description" content="Plan your retaining wall visually. Search your property, sketch walls, and export a concept site plan. By Simple Engineers." />
 
-    <meta property="og:title" content="Wall Planner — Concept Retaining Wall Tool" />
+    <meta property="og:title" content="Retaining Wall Planner — Simple Engineers" />
     <meta property="og:description" content="Plan your retaining wall visually. Search your property, sketch walls, and export a concept site plan." />
     <meta property="og:type" content="website" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
 
   <body>
-    <!--
-      ╔══════════════════════════════════════════════════════════════╗
-      ║  WHITE-LABEL BRANDING INTEGRATION                          ║
-      ║                                                            ║
-      ║  To customise this tool for your engineering firm, add     ║
-      ║  the following script tag BEFORE the module script below.  ║
-      ║  Only include the fields you want to override.             ║
-      ╚══════════════════════════════════════════════════════════════╝
-
-      <script>
-        window.__WALL_PLANNER_BRANDING__ = {
-          companyName: "Your Company Name",
-          logoUrl: "https://yoursite.com/logo.png",
-          primaryHue: 210,          // 0-360 hue value
-          primarySaturation: 60,    // 0-100 saturation %
-          primaryLightness: 35,     // 0-100 lightness %
-          contactUrl: "https://yoursite.com/contact",
-          contactEmail: "info@yoursite.com",
-          tagline: "Custom tagline here"
-        };
-      </script>
-    -->
+    <script>
+      window.__WALL_PLANNER_BRANDING__ = {
+        companyName: "Simple Engineers",
+        logoUrl: "https://simpleengineers.com.au/assets/simple-engineers-logo-stacked-D0qvc9TO.png",
+        primaryHue: 134,
+        primarySaturation: 88,
+        primaryLightness: 55,
+        contactUrl: "https://simpleengineers.com.au/quote",
+        contactEmail: "info@simpleengineers.com.au",
+        tagline: "Structural Engineering Made Simple"
+      };
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

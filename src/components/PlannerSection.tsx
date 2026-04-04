@@ -166,7 +166,7 @@ const PlannerSection = () => {
 
           {/* Side panel */}
           <div className="order-2 lg:sticky lg:top-6 lg:self-start">
-            <div className="rounded-2xl border border-border bg-card shadow-card">
+            <div className="rounded-2xl border border-[#d4d4d4] bg-[#fafafa]">
               {/* Step nav */}
               <div className="flex overflow-x-auto border-b border-border scrollbar-hide">
                 {STEPS.map((step, i) => {
