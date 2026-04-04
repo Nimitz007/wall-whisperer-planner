@@ -65,7 +65,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       doc.text(`Address: ${project.details.address || 'N/A'}`, 15, y); y += 5;
       doc.text(`Email: ${project.details.clientEmail || 'N/A'}`, 15, y); y += 5;
       doc.text(`Phone: ${project.details.clientPhone || 'N/A'}`, 15, y); y += 5;
-      doc.text(`Reference: ${project.details.projectReference || 'N/A'}`, 15, y); y += 5;
+      if (project.details.isBuilder) { doc.text(`Company: ${project.details.companyName || 'N/A'}`, 15, y); y += 5; }
       doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, 15, y); y += 10;
 
       addSection('Wall Summary');
