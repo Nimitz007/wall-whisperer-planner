@@ -355,6 +355,29 @@ const MapCanvas = ({
     if (showTerrain) fetchTerrainContours();
   }, [showTerrain, fetchTerrainContours]);
 
+  // Fetch AHD elevations for all wall node positions
+  useEffect(() => {
+    const allPoints: { key: string; lat: number; lng: number }[] = [];
+    walls.forEach((wall) => {
+      wall.points.forEach((p, i) => {
+        const key = `${wall.id}-${i}`;
+        if (nodeElevations[key] === undefined) {
+          allPoints.push({ key, lat: p.lat, lng: p.lng });
+        }
+      });
+    });
+    if (allPoints.length === 0) return;
+
+    fetchElevations(allPoints.map((p) => ({ lat: p.lat, lng: p.lng }))).then((results) => {
+      if (results.length === 0) return;
+      const newElevs: Record<string, number> = {};
+      results.forEach((r, idx) => {
+        newElevs[allPoints[idx].key] = r.elevation;
+      });
+      setNodeElevations((prev) => ({ ...prev, ...newElevs }));
+    });
+  }, [walls]);
+
   const initialCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
   const initialZoom = center ? 20 : 4;
 
