@@ -269,6 +269,9 @@ const MapCanvas = ({
   // Endpoint markers for snap hints when drawing
   const endpoints = useMemo(() => (isDrawing ? getEndpoints(walls) : []), [isDrawing, walls]);
 
+  const initialCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
+  const initialZoom = center ? 20 : 4;
+
   if (!isLoaded) {
     return (
       <div className="flex h-[400px] items-center justify-center rounded-2xl border border-border bg-card shadow-card lg:h-[700px]">
@@ -280,16 +283,13 @@ const MapCanvas = ({
     );
   }
 
-  const initialCenter = useRef(center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 });
-  const initialZoom = useRef(center ? 20 : 4);
-
   return (
     <div className="relative">
       <div className="h-[400px] w-full overflow-hidden rounded-2xl shadow-card sm:h-[500px] lg:h-[700px]">
         <GoogleMap
           mapContainerStyle={containerStyle}
-          center={googleCenter}
-          zoom={defaultZoom}
+          center={initialCenter}
+          zoom={initialZoom}
           onLoad={onMapLoad}
           onClick={handleMapClick}
           mapTypeId={mapType}
