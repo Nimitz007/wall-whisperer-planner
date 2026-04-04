@@ -100,8 +100,8 @@ const MapCanvas = ({
 
     onWallsChange([...walls, newWall]);
     onActiveWallChange(newWall.id);
-    setCurrentPoints([]);
-    setIsDrawing(false);
+    onCurrentPointsChange([]);
+    onIsDrawingChange(false);
     toast.success(`${newWall.name} added`, { description: `${length.toFixed(1)}m retaining wall` });
   };
 
