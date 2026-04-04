@@ -104,7 +104,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         });
         y += 4;
 
-        if (y > 260) { doc.addPage(); y = 20; }
+        if (y > 260) { doc.addPage(); addWatermark(); y = 20; }
       });
 
       // Disclaimer page
