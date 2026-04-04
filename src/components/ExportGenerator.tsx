@@ -99,7 +99,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         // Materials
         const materials = estimateMaterials(wall);
         materials.forEach(m => {
-          doc.text(`  • ${m.item}: ${m.quantity} ${m.unit} ${m.notes ? `(${m.notes})` : ''}`, 20, y);
+          doc.text(`  • ${m.item}: ${m.qtyWithWastage} ${m.unit} (incl. ${m.wastagePercent}% wastage)`, 20, y);
           y += 4;
         });
         y += 4;
