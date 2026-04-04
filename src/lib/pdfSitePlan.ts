@@ -729,6 +729,7 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
 
   // ═══ PAGE 1: SITE PLAN ═══════════════════════════════════
   drawBorder(doc);
+  drawWatermark(doc);
 
   if (project.walls.length > 0 && project.walls.some(w => w.points.length >= 2)) {
     const planArea: DrawArea = {
