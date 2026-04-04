@@ -63,10 +63,9 @@ async function fetchSatelliteImage(bbox: BBox, widthPx: number, heightPx: number
   try {
     const cLng = (bbox.minLng + bbox.maxLng) / 2;
     const cLat = (bbox.minLat + bbox.maxLat) / 2;
-    // Calculate zoom from bbox
     const latSpan = bbox.maxLat - bbox.minLat;
-    const zoom = Math.min(Math.floor(Math.log2(180 / latSpan)) + 1, 19);
-    const url = `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${cLng},${cLat},${zoom},0/${widthPx}x${heightPx}@2x?access_token=${token}`;
+    const zoom = Math.min(Math.floor(Math.log2(180 / latSpan)) + 1, 20);
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${cLat},${cLng}&zoom=${zoom}&size=${widthPx}x${heightPx}&scale=2&maptype=satellite&key=${token}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const blob = await res.blob();
