@@ -588,7 +588,7 @@ function drawElevation(doc: jsPDF, wall: WallSegment, ox: number, baseY: number,
 }
 
 // ─── MAIN EXPORT FUNCTION ─────────────────────────────────
-export async function generateEngineeringSitePlan(project: ProjectState, mapboxToken?: string, branding?: BrandingConfig) {
+export async function generateEngineeringSitePlan(project: ProjectState, googleMapsApiKey?: string, branding?: BrandingConfig) {
   const doc = new jsPDF('landscape', 'mm', 'a3');
   const w = doc.internal.pageSize.getWidth();
   const h = doc.internal.pageSize.getHeight();
