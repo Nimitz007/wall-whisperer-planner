@@ -72,9 +72,6 @@ const PlannerSection = () => {
     setProject((p) => ({ ...p, details: { ...p.details, ...partial } }));
   };
 
-  const updateSiteContext = (partial: Partial<SiteContext>) => {
-    setProject((p) => ({ ...p, siteContext: { ...p.siteContext, ...partial } }));
-  };
 
   const updateWalls = (walls: WallSegment[]) => {
     setProject((p) => ({ ...p, walls }));
