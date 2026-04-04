@@ -52,7 +52,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
       container: mapContainer.current,
       style: MAP_STYLES[mapStyle],
       center: center || [133.7751, -25.2744], // Australia center
-      zoom: center ? 18 : 4,
+      zoom: center ? 20 : 4,
       pitch: 0,
       bearing: 0,
     });
