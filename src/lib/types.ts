@@ -47,7 +47,8 @@ export interface ProjectDetails {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
-  projectReference: string;
+  isBuilder: boolean;
+  companyName: string;
 }
 
 export interface SiteContext {

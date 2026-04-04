@@ -152,7 +152,7 @@ function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState,
   const rows: [string, string][] = [
     ['PROJECT', project.details.address || 'N/A'],
     ['CLIENT', project.details.clientName || 'N/A'],
-    ['REF', project.details.projectReference || 'N/A'],
+    ['REF', project.details.isBuilder ? project.details.companyName || 'N/A' : 'N/A'],
     ['DATE', new Date().toLocaleDateString('en-AU')],
     ['SHEET', sheetTitle],
   ];
@@ -702,5 +702,5 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     drawDisclaimer(doc, w, h, branding);
   }
 
-  doc.save(`concept-site-plan-${project.details.projectReference || 'export'}.pdf`);
+  doc.save(`concept-site-plan-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.pdf`);
 }

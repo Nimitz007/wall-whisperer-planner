@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AddressSearch from "./AddressSearch";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2 } from "lucide-react";
 
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
@@ -40,7 +41,8 @@ const PlannerSection = () => {
       clientName: "",
       clientEmail: "",
       clientPhone: "",
-      projectReference: "",
+      isBuilder: false,
+      companyName: "",
     },
     walls: [],
     siteContext: {
@@ -148,7 +150,6 @@ const PlannerSection = () => {
           <AddressSearch
             onSelect={(result) => {
               updateDetails(result);
-              setStep(1);
               toast.success("Property found", {
                 description: result.address,
               });
@@ -285,15 +286,25 @@ const PlannerSection = () => {
                           <p className="text-xs text-muted-foreground">Required to proceed (min 8 digits)</p>
                         )}
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Project Reference</Label>
-                        <Input
-                          value={project.details.projectReference}
-                          onChange={(e) => updateDetails({ projectReference: e.target.value })}
-                          placeholder="e.g. RW-2026-001"
-                          className="rounded-lg"
+                      <div className="flex items-center space-x-2 pt-1">
+                        <Checkbox
+                          id="isBuilder"
+                          checked={project.details.isBuilder}
+                          onCheckedChange={(checked) => updateDetails({ isBuilder: !!checked })}
                         />
+                        <Label htmlFor="isBuilder" className="text-sm cursor-pointer">I am a builder</Label>
                       </div>
+                      {project.details.isBuilder && (
+                        <div className="space-y-1.5">
+                          <Label className="text-sm">Company Name</Label>
+                          <Input
+                            value={project.details.companyName}
+                            onChange={(e) => updateDetails({ companyName: e.target.value })}
+                            placeholder="Building company name"
+                            className="rounded-lg"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

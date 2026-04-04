@@ -65,7 +65,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       doc.text(`Address: ${project.details.address || 'N/A'}`, 15, y); y += 5;
       doc.text(`Email: ${project.details.clientEmail || 'N/A'}`, 15, y); y += 5;
       doc.text(`Phone: ${project.details.clientPhone || 'N/A'}`, 15, y); y += 5;
-      doc.text(`Reference: ${project.details.projectReference || 'N/A'}`, 15, y); y += 5;
+      if (project.details.isBuilder) { doc.text(`Company: ${project.details.companyName || 'N/A'}`, 15, y); y += 5; }
       doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, 15, y); y += 10;
 
       addSection('Wall Summary');
@@ -121,7 +121,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       let dy = 42;
       disclaimer.forEach(line => { doc.text(line, 15, dy); dy += 7; });
 
-      doc.save(`project-summary-${project.details.projectReference || 'export'}.pdf`);
+      doc.save(`project-summary-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.pdf`);
       toast.success('Summary downloaded', { id: 'summary', description: 'Project summary PDF' });
     } catch {
       toast.error('Failed to generate summary', { id: 'summary' });
@@ -145,7 +145,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `wall-schedule-${project.details.projectReference || 'export'}.csv`;
+      a.download = `wall-schedule-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('CSV downloaded', { description: 'Wall schedule spreadsheet' });

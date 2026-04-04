@@ -22,7 +22,7 @@ const ProjectSummary = ({ project }: ProjectSummaryProps) => {
           <Row label="Address" value={project.details.address || '—'} />
           <Row label="Client" value={project.details.clientName || '—'} />
           <Row label="Email" value={project.details.clientEmail || '—'} />
-          <Row label="Reference" value={project.details.projectReference || '—'} />
+          {project.details.isBuilder && <Row label="Company" value={project.details.companyName || '—'} />}
         </div>
       </div>
 
