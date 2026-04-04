@@ -285,15 +285,25 @@ const PlannerSection = () => {
                           <p className="text-xs text-muted-foreground">Required to proceed (min 8 digits)</p>
                         )}
                       </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Project Reference</Label>
-                        <Input
-                          value={project.details.projectReference}
-                          onChange={(e) => updateDetails({ projectReference: e.target.value })}
-                          placeholder="e.g. RW-2026-001"
-                          className="rounded-lg"
+                      <div className="flex items-center space-x-2 pt-1">
+                        <Checkbox
+                          id="isBuilder"
+                          checked={project.details.isBuilder}
+                          onCheckedChange={(checked) => updateDetails({ isBuilder: !!checked })}
                         />
+                        <Label htmlFor="isBuilder" className="text-sm cursor-pointer">I am a builder</Label>
                       </div>
+                      {project.details.isBuilder && (
+                        <div className="space-y-1.5">
+                          <Label className="text-sm">Company Name</Label>
+                          <Input
+                            value={project.details.companyName}
+                            onChange={(e) => updateDetails({ companyName: e.target.value })}
+                            placeholder="Building company name"
+                            className="rounded-lg"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
