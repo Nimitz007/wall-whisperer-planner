@@ -264,13 +264,14 @@ const PlannerSection = () => {
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Phone</Label>
+                        <Label className="text-sm">Phone <span className="text-destructive">*</span></Label>
                         <Input
                           type="tel"
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
                           placeholder="04XX XXX XXX"
                           className="rounded-lg"
+                          required
                         />
                       </div>
                       <div className="space-y-1.5">
