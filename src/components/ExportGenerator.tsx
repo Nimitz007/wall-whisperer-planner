@@ -30,7 +30,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
     } finally {
       setLoadingSitePlan(false);
     }
-  }, [project, mapboxToken, branding]);
+  }, [project, googleMapsApiKey, branding]);
 
   const generatePDFSummary = useCallback(() => {
     setLoadingSummary(true);
