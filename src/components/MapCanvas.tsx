@@ -25,8 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
-import { fetchSingleElevation } from '@/lib/elevationService';
-import { fetchElevationGrid, generateContourLines, getContourColor, type ElevationGridPoint } from '@/lib/elevationGrid';
+import { fetchSingleElevation, fetchElevations } from '@/lib/elevationService';
+import { fetchElevationGrid, generateContourLines, getContourColor } from '@/lib/elevationGrid';
 
 type MapTypeId = 'satellite' | 'hybrid';
 
@@ -125,6 +125,7 @@ const MapCanvas = ({
   const [contourLines, setContourLines] = useState<{ level: number; segments: { lat1: number; lng1: number; lat2: number; lng2: number }[] }[]>([]);
   const [contourElevRange, setContourElevRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
   const terrainBoundsRef = useRef<string | null>(null);
+  const [nodeElevations, setNodeElevations] = useState<Record<string, number>>({}); // key: "wallId-pointIndex"
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -354,6 +355,29 @@ const MapCanvas = ({
     if (showTerrain) fetchTerrainContours();
   }, [showTerrain, fetchTerrainContours]);
 
+  // Fetch AHD elevations for all wall node positions
+  useEffect(() => {
+    const allPoints: { key: string; lat: number; lng: number }[] = [];
+    walls.forEach((wall) => {
+      wall.points.forEach((p, i) => {
+        const key = `${wall.id}-${i}`;
+        if (nodeElevations[key] === undefined) {
+          allPoints.push({ key, lat: p.lat, lng: p.lng });
+        }
+      });
+    });
+    if (allPoints.length === 0) return;
+
+    fetchElevations(allPoints.map((p) => ({ lat: p.lat, lng: p.lng }))).then((results) => {
+      if (results.length === 0) return;
+      const newElevs: Record<string, number> = {};
+      results.forEach((r, idx) => {
+        newElevs[allPoints[idx].key] = r.elevation;
+      });
+      setNodeElevations((prev) => ({ ...prev, ...newElevs }));
+    });
+  }, [walls]);
+
   const initialCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
   const initialZoom = center ? 20 : 4;
 
@@ -532,6 +556,38 @@ const MapCanvas = ({
                     </div>
                   </OverlayViewF>
                 )}
+                {/* Spot elevation labels at each node */}
+                {wall.points.map((p, i) => {
+                  const elevKey = `${wall.id}-${i}`;
+                  const elev = nodeElevations[elevKey];
+                  if (elev === undefined) return null;
+                  return (
+                    <OverlayViewF
+                      key={`elev-label-${wall.id}-${i}`}
+                      position={{ lat: p.lat, lng: p.lng }}
+                      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                    >
+                      <div
+                        style={{
+                          transform: 'translate(-50%, 10px)',
+                          padding: '1px 4px',
+                          fontSize: '9px',
+                          fontWeight: 600,
+                          color: '#FFD700',
+                          background: 'rgba(0,0,0,0.6)',
+                          borderRadius: '2px',
+                          whiteSpace: 'nowrap',
+                          pointerEvents: 'none',
+                          lineHeight: '12px',
+                          borderLeft: '2px solid #FFD700',
+                        }}
+                      >
+                        RL {elev.toFixed(2)}m
+                        {p.height ? ` | H ${p.height}m` : ''}
+                      </div>
+                    </OverlayViewF>
+                  );
+                })}
               </div>
             );
           })}
