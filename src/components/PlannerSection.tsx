@@ -97,10 +97,10 @@ const PlannerSection = () => {
   const hasAddress = !!project.details.address;
   const hasWalls = project.walls.length > 0;
   const isFullName = /^\S+\s+\S+/.test(project.details.clientName.trim());
-  const hasContactInfo =
-    isFullName &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail) &&
-    project.details.clientPhone.replace(/\D/g, '').length === 10;
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
+  const phoneDigits = project.details.clientPhone.replace(/\D/g, '');
+  const isPhoneValid = phoneDigits.length >= 10 && phoneDigits.length <= 12;
+  const hasContactInfo = isFullName && isEmailValid && isPhoneValid;
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
