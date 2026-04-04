@@ -85,8 +85,6 @@ async function loadLogoDataUrl(): Promise<string | null> {
 function drawBorder(doc: jsPDF) {
   doc.setDrawColor(...C.border);
   doc.setLineWidth(0.5);
-  doc.rect(BORDER_OUTER, BORDER_OUTER, A3_W - BORDER_OUTER * 2, A3_H - BORDER_OUTER * 2);
-  doc.setLineWidth(0.2);
   doc.rect(BORDER_INNER, BORDER_INNER, A3_W - BORDER_INNER * 2, A3_H - BORDER_INNER * 2);
 }
 
