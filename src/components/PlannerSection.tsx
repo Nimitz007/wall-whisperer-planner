@@ -446,19 +446,9 @@ const PlannerSection = () => {
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Export</h3>
 
-                    <PaymentGate
-                      isPaid={project.isPaid}
-                      onPayment={() => setProject((p) => ({ ...p, isPaid: true }))}
-                      disclaimerAccepted={project.disclaimerAccepted}
-                      onDisclaimerChange={(v) => setProject((p) => ({ ...p, disclaimerAccepted: v }))}
-                      wallCount={project.walls.length}
-                    />
+                    <PaymentGate />
 
-                    {project.isPaid && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                        <ExportGenerator project={project} googleMapsApiKey={GOOGLE_MAPS_API_KEY} />
-                      </motion.div>
-                    )}
+                    <ExportGenerator project={project} googleMapsApiKey={GOOGLE_MAPS_API_KEY} />
                   </div>
                 )}
 
