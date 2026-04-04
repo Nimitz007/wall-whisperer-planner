@@ -72,50 +72,7 @@ const MapCanvas = ({
     [isDrawing, onCurrentPointsChange]
   );
 
-  const finishWall = () => {
-    if (currentPoints.length < 2) {
-      onCurrentPointsChange([]);
-      onIsDrawingChange(false);
-      return;
-    }
-
-    const length = calculatePolylineLength(currentPoints);
-    const newWall: WallSegment = {
-      id: v4Fallback(),
-      name: generateWallName(walls.length),
-      points: currentPoints,
-      wallType: 'concrete-sleeper',
-      length,
-      averageHeight: 1.0,
-      maxHeight: 1.2,
-      offsetFromDwelling: 0,
-      offsetFromBoundary: 0,
-      hasSurcharge: false,
-      hasFenceAbove: false,
-      hasDrainageRequired: true,
-      notes: '',
-      materialAssumptions: '',
-    };
-
-    onWallsChange([...walls, newWall]);
-    onActiveWallChange(newWall.id);
-    onCurrentPointsChange([]);
-    onIsDrawingChange(false);
-    toast.success(`${newWall.name} added`, { description: `${length.toFixed(1)}m retaining wall` });
-  };
-
   const confirmDeleteWall = (wall: WallSegment) => setWallToDelete(wall);
-
-  const deleteWall = () => {
-    if (!wallToDelete) return;
-    const name = wallToDelete.name;
-    onWallsChange(walls.filter((w) => w.id !== wallToDelete.id));
-    if (activeWallId === wallToDelete.id) onActiveWallChange(null);
-    setWallToDelete(null);
-    toast('Wall deleted', { description: `${name} has been removed` });
-  };
-
-  const undoLastPoint = () => onCurrentPointsChange((prev) => prev.slice(0, -1));
 
   if (!isLoaded) {
     return (
