@@ -1,11 +1,9 @@
 import { WallSegment, WallType, WALL_TYPE_LABELS } from '@/lib/types';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { Ruler, Building2, Square, AlertTriangle } from 'lucide-react';
+import { Ruler, AlertTriangle } from 'lucide-react';
 
 interface WallEditorPanelProps {
   wall: WallSegment;
@@ -16,12 +14,6 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
   const update = (partial: Partial<WallSegment>) => onChange({ ...wall, ...partial });
 
   const warnings: string[] = [];
-  if (wall.averageHeight > wall.maxHeight && wall.maxHeight > 0) {
-    warnings.push('Average height exceeds max height');
-  }
-  if (wall.maxHeight > 3) {
-    warnings.push('Walls over 3m typically require special engineering design');
-  }
   if (wall.length < 0.5) {
     warnings.push('Wall length is very short — check placement');
   }
@@ -36,7 +28,6 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
         </div>
       </div>
 
-      {/* Validation warnings */}
       {warnings.length > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/50">
           {warnings.map((w, i) => (
@@ -65,70 +56,12 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
         </Select>
       </div>
 
-      {/* Heights */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="text-sm text-foreground">Average Height (m)</Label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={wall.averageHeight}
-            onChange={(e) => update({ averageHeight: parseFloat(e.target.value) || 0 })}
-            className={`rounded-lg ${wall.averageHeight > wall.maxHeight && wall.maxHeight > 0 ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-sm text-foreground">Max Height (m)</Label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={wall.maxHeight}
-            onChange={(e) => update({ maxHeight: parseFloat(e.target.value) || 0 })}
-            className={`rounded-lg ${wall.maxHeight > 3 ? 'border-amber-400 focus-visible:ring-amber-400' : ''}`}
-          />
-        </div>
-      </div>
-
-      {/* Offsets */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm text-foreground">
-            <Building2 className="h-3.5 w-3.5" /> Distance to house (m)
-          </Label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={wall.offsetFromDwelling}
-            onChange={(e) => update({ offsetFromDwelling: parseFloat(e.target.value) || 0 })}
-            className="rounded-lg"
-          />
-          <p className="text-[10px] text-muted-foreground">Approximate — user-confirmed</p>
-        </div>
-        <div className="space-y-2">
-          <Label className="flex items-center gap-1.5 text-sm text-foreground">
-            <Square className="h-3.5 w-3.5" /> Distance to boundary (m)
-          </Label>
-          <Input
-            type="number"
-            step="0.1"
-            min="0"
-            value={wall.offsetFromBoundary}
-            onChange={(e) => update({ offsetFromBoundary: parseFloat(e.target.value) || 0 })}
-            className="rounded-lg"
-          />
-          <p className="text-[10px] text-muted-foreground">Concept measurement only</p>
-        </div>
-      </div>
-
       <Separator />
 
       {/* Conditions */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <Label className="text-sm text-foreground">Fence or load above wall?</Label>
+          <Label className="text-sm text-foreground">Fence above?</Label>
           <Switch checked={wall.hasFenceAbove} onCheckedChange={(v) => update({ hasFenceAbove: v })} />
         </div>
         <div className="flex items-center justify-between">
@@ -136,20 +69,9 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
           <Switch checked={wall.hasSurcharge} onCheckedChange={(v) => update({ hasSurcharge: v })} />
         </div>
         <div className="flex items-center justify-between">
-          <Label className="text-sm text-foreground">Drainage required?</Label>
-          <Switch checked={wall.hasDrainageRequired} onCheckedChange={(v) => update({ hasDrainageRequired: v })} />
+          <Label className="text-sm text-foreground">On boundary?</Label>
+          <Switch checked={wall.onBoundary} onCheckedChange={(v) => update({ onBoundary: v })} />
         </div>
-      </div>
-
-      {/* Notes */}
-      <div className="space-y-2">
-        <Label className="text-sm text-foreground">Notes</Label>
-        <Textarea
-          value={wall.notes}
-          onChange={(e) => update({ notes: e.target.value })}
-          placeholder="Add any notes about this wall segment..."
-          className="min-h-[80px] rounded-lg text-sm"
-        />
       </div>
     </div>
   );
