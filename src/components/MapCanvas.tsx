@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { fetchSingleElevation } from '@/lib/elevationService';
 
 type MapTypeId = 'satellite' | 'hybrid';
 
@@ -113,6 +114,9 @@ const MapCanvas = ({
   const [snapTarget, setSnapTarget] = useState<WallPoint | null>(null);
   const [heightPrompt, setHeightPrompt] = useState<{ point: WallPoint; index: number } | null>(null);
   const [heightInput, setHeightInput] = useState('');
+  const [suggestedElevation, setSuggestedElevation] = useState<number | null>(null);
+  const [elevationLoading, setElevationLoading] = useState(false);
+  const firstNodeElevationRef = useRef<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
   const [editHeightInput, setEditHeightInput] = useState('');
 
@@ -141,6 +145,13 @@ const MapCanvas = ({
   useEffect(() => {
     if (mapRef.current) mapRef.current.setMapTypeId(mapType);
   }, [mapType]);
+
+  // Reset reference elevation when starting a new wall
+  useEffect(() => {
+    if (isDrawing && currentPoints.length === 0) {
+      firstNodeElevationRef.current = null;
+    }
+  }, [isDrawing, currentPoints.length]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -199,15 +210,39 @@ const MapCanvas = ({
         toast.info('Snapped to wall endpoint', { duration: 1500 });
       }
 
+      const nodeIndex = currentPoints.length;
+
       // Add point first, then prompt for height
       onCurrentPointsChange((prev) => {
         const newPoints = [...prev, point];
         return newPoints;
       });
-      
-      // Show height prompt
+
+      // Fetch elevation and pre-fill height suggestion
+      setSuggestedElevation(null);
+      setElevationLoading(true);
       setHeightInput('');
-      setHeightPrompt({ point, index: currentPoints.length });
+
+      fetchSingleElevation(point.lat, point.lng).then((elev) => {
+        setElevationLoading(false);
+        if (elev !== null) {
+          // First node of the current wall: store as reference elevation
+          if (nodeIndex === 0) {
+            firstNodeElevationRef.current = elev;
+            setSuggestedElevation(null); // no height diff for first node
+          } else if (firstNodeElevationRef.current !== null) {
+            const diff = Math.abs(elev - firstNodeElevationRef.current);
+            const rounded = Math.round(diff * 10) / 10;
+            if (rounded > 0) {
+              setSuggestedElevation(rounded);
+              setHeightInput(String(rounded));
+            }
+          }
+        }
+      });
+
+      // Show height prompt
+      setHeightPrompt({ point, index: nodeIndex });
     },
     [isDrawing, onCurrentPointsChange, findSnapPoint, currentPoints.length]
   );
@@ -588,7 +623,30 @@ const MapCanvas = ({
               autoFocus
               className="rounded-lg"
             />
-            <p className="text-xs text-muted-foreground">Enter the retaining wall height at this specific point</p>
+            {elevationLoading && (
+              <p className="text-xs text-muted-foreground animate-pulse">Fetching terrain elevation…</p>
+            )}
+            {suggestedElevation !== null && !elevationLoading && (
+              <div className="flex items-center gap-2 rounded-md bg-accent/50 px-3 py-1.5">
+                <span className="text-xs text-muted-foreground">
+                  Suggested from terrain: <strong className="text-foreground">{suggestedElevation}m</strong>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-2 text-[10px]"
+                  onClick={() => setHeightInput(String(suggestedElevation))}
+                >
+                  Use
+                </Button>
+              </div>
+            )}
+            {heightPrompt && heightPrompt.index === 0 && !elevationLoading && (
+              <p className="text-xs text-muted-foreground">First node — this sets the reference elevation for height calculations</p>
+            )}
+            {heightPrompt && heightPrompt.index > 0 && suggestedElevation === null && !elevationLoading && (
+              <p className="text-xs text-muted-foreground">Enter the retaining wall height at this specific point</p>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={handleHeightSkip}>Skip</Button>
