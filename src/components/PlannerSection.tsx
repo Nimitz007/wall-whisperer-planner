@@ -153,7 +153,6 @@ const PlannerSection = () => {
           {/* Map */}
           <div className="order-1">
             <MapCanvas
-              mapboxToken={MAPBOX_TOKEN}
               center={mapCenter}
               walls={project.walls}
               onWallsChange={updateWalls}
