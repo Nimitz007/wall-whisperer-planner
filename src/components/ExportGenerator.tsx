@@ -38,6 +38,20 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
     try {
       const doc = new jsPDF('portrait', 'mm', 'a4');
       const w = doc.internal.pageSize.getWidth();
+      const h = doc.internal.pageSize.getHeight();
+
+      // Watermark helper
+      const addWatermark = () => {
+        doc.saveGraphicsState();
+        doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
+        doc.setFontSize(54);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('SIMPLE ENGINEERS', w / 2, h / 2, { align: 'center', angle: 35 });
+        doc.restoreGraphicsState();
+      };
+
+      addWatermark();
 
       // Header
       doc.setFillColor(45, 55, 72);
@@ -76,7 +90,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         doc.setFont('helvetica', 'bold');
         doc.text(`${wall.name} — ${WALL_TYPE_LABELS[wall.wallType]}`, 15, y); y += 5;
         doc.setFont('helvetica', 'normal');
-        doc.text(`Length: ${wall.length.toFixed(1)}m | Avg Height: ${wall.averageHeight}m | Max Height: ${wall.maxHeight}m`, 20, y); y += 5;
+        doc.text(`Length: ${wall.length.toFixed(1)}m | Min Height: ${wall.minHeight}m | Max Height: ${wall.maxHeight}m`, 20, y); y += 5;
         doc.text(`Offset from dwelling: ${wall.offsetFromDwelling}m (approx) | Offset from boundary: ${wall.offsetFromBoundary}m (approx)`, 20, y); y += 5;
         doc.text(`Surcharge: ${wall.hasSurcharge ? 'Yes' : 'No'} | Fence above: ${wall.hasFenceAbove ? 'Yes' : 'No'} | Drainage: ${wall.hasDrainageRequired ? 'Yes' : 'No'}`, 20, y); y += 5;
         if (wall.notes) { doc.text(`Notes: ${wall.notes}`, 20, y); y += 5; }
@@ -90,11 +104,12 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         });
         y += 4;
 
-        if (y > 260) { doc.addPage(); y = 20; }
+        if (y > 260) { doc.addPage(); addWatermark(); y = 20; }
       });
 
       // Disclaimer page
       doc.addPage();
+      addWatermark();
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('IMPORTANT DISCLAIMER', 15, 30);
@@ -124,9 +139,9 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
   const generateCSV = useCallback(() => {
     setLoadingCSV(true);
     try {
-      const headers = ['Segment Name', 'Wall Type', 'Length (m)', 'Avg Height (m)', 'Max Height (m)', 'Offset Dwelling (m)', 'Offset Boundary (m)', 'Surcharge', 'Fence Above', 'Drainage', 'Notes'];
+      const headers = ['Segment Name', 'Wall Type', 'Length (m)', 'Min Height (m)', 'Max Height (m)', 'Offset Dwelling (m)', 'Offset Boundary (m)', 'Surcharge', 'Fence Above', 'Drainage', 'Notes'];
       const rows = project.walls.map(w => [
-        w.name, WALL_TYPE_LABELS[w.wallType], w.length.toFixed(1), w.averageHeight.toString(), w.maxHeight.toString(),
+        w.name, WALL_TYPE_LABELS[w.wallType], w.length.toFixed(1), w.minHeight.toString(), w.maxHeight.toString(),
         w.offsetFromDwelling.toString(), w.offsetFromBoundary.toString(),
         w.hasSurcharge ? 'Yes' : 'No', w.hasFenceAbove ? 'Yes' : 'No', w.hasDrainageRequired ? 'Yes' : 'No', w.notes,
       ]);

@@ -338,15 +338,15 @@ const PlannerSection = () => {
                               }
                               const length = calculatePolylineLength(currentPoints);
                               const heights = currentPoints.map(p => p.height || 0).filter(h => h > 0);
-                              const avgHeight = heights.length > 0 ? heights.reduce((a, b) => a + b, 0) / heights.length : 1.0;
                               const maxH = heights.length > 0 ? Math.max(...heights) : 1.2;
+                              const minH = heights.length > 0 ? Math.min(...heights) : 0.8;
                               const newWall: WallSegment = {
                                 id: v4Fallback(),
                                 name: generateWallName(project.walls.length),
                                 points: currentPoints,
                                 wallType: 'concrete-sleeper',
                                 length,
-                                averageHeight: parseFloat(avgHeight.toFixed(2)),
+                                minHeight: parseFloat(minH.toFixed(2)),
                                 maxHeight: parseFloat(maxH.toFixed(2)),
                                 offsetFromDwelling: 0,
                                 offsetFromBoundary: 0,
@@ -446,19 +446,9 @@ const PlannerSection = () => {
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Export</h3>
 
-                    <PaymentGate
-                      isPaid={project.isPaid}
-                      onPayment={() => setProject((p) => ({ ...p, isPaid: true }))}
-                      disclaimerAccepted={project.disclaimerAccepted}
-                      onDisclaimerChange={(v) => setProject((p) => ({ ...p, disclaimerAccepted: v }))}
-                      wallCount={project.walls.length}
-                    />
+                    <PaymentGate />
 
-                    {project.isPaid && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                        <ExportGenerator project={project} googleMapsApiKey={GOOGLE_MAPS_API_KEY} />
-                      </motion.div>
-                    )}
+                    <ExportGenerator project={project} googleMapsApiKey={GOOGLE_MAPS_API_KEY} />
                   </div>
                 )}
 

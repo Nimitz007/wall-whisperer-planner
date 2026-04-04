@@ -80,6 +80,17 @@ async function loadLogoDataUrl(): Promise<string | null> {
   } catch { return null; }
 }
 
+// ─── WATERMARK ─────────────────────────────────────────────
+function drawWatermark(doc: jsPDF) {
+  doc.saveGraphicsState();
+  doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
+  doc.setFontSize(72);
+  doc.setFont(FONT, 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('SIMPLE ENGINEERS', A3_W / 2, A3_H / 2, { align: 'center', angle: 35 });
+  doc.restoreGraphicsState();
+}
+
 // ─── DRAWING PRIMITIVES ───────────────────────────────────
 
 function drawBorder(doc: jsPDF) {
@@ -718,6 +729,7 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
 
   // ═══ PAGE 1: SITE PLAN ═══════════════════════════════════
   drawBorder(doc);
+  drawWatermark(doc);
 
   if (project.walls.length > 0 && project.walls.some(w => w.points.length >= 2)) {
     const planArea: DrawArea = {
@@ -777,6 +789,7 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
   project.walls.forEach((wall, idx) => {
     doc.addPage([420, 297], 'landscape');
     drawBorder(doc);
+    drawWatermark(doc);
 
     // Note boxes - right-aligned near title block
     const tbX2 = A3_W - BORDER_INNER - TB_WIDTH;

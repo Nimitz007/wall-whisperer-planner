@@ -1,6 +1,5 @@
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
-import { Separator } from '@/components/ui/separator';
 import { MapPin, Ruler, Package, AlertTriangle } from 'lucide-react';
 
 interface ProjectSummaryProps {
@@ -44,18 +43,16 @@ const ProjectSummary = ({ project }: ProjectSummaryProps) => {
                 <thead className="bg-muted text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">Name</th>
-                    <th className="px-3 py-2">Type</th>
                     <th className="px-3 py-2 text-right">Length</th>
-                    <th className="px-3 py-2 text-right">Height</th>
+                    <th className="px-3 py-2 text-right">Max Height</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {project.walls.map(wall => (
                     <tr key={wall.id} className="text-foreground">
                       <td className="px-3 py-2 font-medium">{wall.name}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{WALL_TYPE_LABELS[wall.wallType]}</td>
                       <td className="px-3 py-2 text-right">{wall.length.toFixed(1)}m</td>
-                      <td className="px-3 py-2 text-right">{wall.averageHeight}m</td>
+                      <td className="px-3 py-2 text-right">{wall.maxHeight}m</td>
                     </tr>
                   ))}
                 </tbody>
@@ -88,7 +85,6 @@ const ProjectSummary = ({ project }: ProjectSummaryProps) => {
                         <th className="px-3 py-2">Item</th>
                         <th className="px-3 py-2 text-right">Qty</th>
                         <th className="px-3 py-2">Unit</th>
-                        <th className="px-3 py-2">Notes</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -97,7 +93,6 @@ const ProjectSummary = ({ project }: ProjectSummaryProps) => {
                           <td className="px-3 py-2">{m.item}</td>
                           <td className="px-3 py-2 text-right font-medium">{m.quantity}</td>
                           <td className="px-3 py-2 text-muted-foreground">{m.unit}</td>
-                          <td className="px-3 py-2 text-xs text-muted-foreground">{m.notes}</td>
                         </tr>
                       ))}
                     </tbody>
