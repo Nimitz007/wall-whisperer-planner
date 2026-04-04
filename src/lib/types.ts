@@ -77,4 +77,8 @@ export interface MaterialEstimate {
   quantity: string;
   unit: string;
   notes: string;
+  wastagePercent: number;
+  qtyWithWastage: string;
+  category: string;
+  assumption: string;
 }
