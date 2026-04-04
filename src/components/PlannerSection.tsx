@@ -138,7 +138,6 @@ const PlannerSection = () => {
         {/* Address search */}
         <div className="mx-auto max-w-2xl pb-8 pt-6">
           <AddressSearch
-            mapboxToken={MAPBOX_TOKEN}
             onSelect={(result) => {
               updateDetails(result);
               setStep(1);
