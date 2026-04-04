@@ -304,6 +304,11 @@ const MapCanvas = ({
             tilt: 0,
             draggableCursor: isDrawing ? 'crosshair' : undefined,
             draggingCursor: isDrawing ? 'crosshair' : undefined,
+            clickableIcons: false,
+            styles: [
+              { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+              { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+            ],
           }}
         >
           {/* Existing walls */}
