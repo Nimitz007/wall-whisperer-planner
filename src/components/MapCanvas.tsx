@@ -159,6 +159,8 @@ const MapCanvas = ({
   useEffect(() => {
     if (isDrawing && currentPoints.length === 0) {
       firstNodeElevationRef.current = null;
+      prevNodeElevationRef.current = null;
+      prevNodeHeightRef.current = 0;
     }
   }, [isDrawing, currentPoints.length]);
 
