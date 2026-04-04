@@ -5,7 +5,7 @@ import { WallSegment, WallType, MaterialEstimate, WallPoint } from './types';
  * Returns distance in metres
  */
 export function calculateDistance(p1: WallPoint, p2: WallPoint): number {
-  const R = 6371000; // Earth radius in metres
+  const R = 6371000;
   const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
   const dLng = ((p2.lng - p1.lng) * Math.PI) / 180;
   const a =
@@ -18,9 +18,6 @@ export function calculateDistance(p1: WallPoint, p2: WallPoint): number {
   return R * c;
 }
 
-/**
- * Calculate total polyline length in metres
- */
 export function calculatePolylineLength(points: WallPoint[]): number {
   let total = 0;
   for (let i = 0; i < points.length - 1; i++) {
@@ -29,79 +26,170 @@ export function calculatePolylineLength(points: WallPoint[]): number {
   return total;
 }
 
+function mat(
+  item: string,
+  qty: number,
+  unit: string,
+  wastage: number,
+  category: string,
+  assumption: string,
+  notes: string = ''
+): MaterialEstimate {
+  const qtyW = qty * (1 + wastage / 100);
+  return {
+    item,
+    quantity: Number.isInteger(qty) ? qty.toString() : qty.toFixed(2),
+    unit,
+    notes,
+    wastagePercent: wastage,
+    qtyWithWastage: Number.isInteger(Math.ceil(qtyW)) ? Math.ceil(qtyW).toString() : qtyW.toFixed(2),
+    category,
+    assumption,
+  };
+}
+
 /**
- * Generate approximate material estimates for a wall segment
+ * Generate detailed material estimates with wastage for a wall segment
  */
 export function estimateMaterials(wall: WallSegment): MaterialEstimate[] {
   const length = wall.length;
   const height = wall.maxHeight || 1;
   const area = length * height;
+  const numPosts = Math.ceil(length / 2.4 + 1);
 
   switch (wall.wallType) {
     case 'concrete-sleeper':
       return [
-        { item: 'Concrete Sleepers (200mm)', quantity: Math.ceil(area / (1.5 * 0.2)).toString(), unit: 'sleepers', notes: 'Based on 1500mm sleeper length' },
-        { item: 'Steel H-Posts', quantity: Math.ceil(length / 2.4 + 1).toString(), unit: 'posts', notes: 'At 2.4m centres' },
-        { item: 'Concrete (post footings)', quantity: (Math.ceil(length / 2.4 + 1) * 0.12).toFixed(2), unit: 'm³', notes: '400mm dia x 900mm deep' },
-        { item: 'Drainage Aggregate', quantity: (length * 0.3 * height * 0.3).toFixed(2), unit: 'm³', notes: '300mm wide behind wall' },
-        { item: 'Ag Pipe (100mm slotted)', quantity: Math.ceil(length).toString(), unit: 'lin.m', notes: 'Full length of wall' },
-        { item: 'Geofabric', quantity: Math.ceil(length * (height + 0.6)).toString(), unit: 'm²', notes: 'Behind wall drainage zone' },
+        mat('Concrete Sleepers (200×1500mm)', Math.ceil(area / (1.5 * 0.2)), 'sleepers', 5, 'STRUCTURAL',
+          'Sleeper size 1500×200mm; qty = wall area ÷ sleeper face area (0.30 m²)',
+          'Standard 1500mm sleepers stacked horizontally'),
+        mat('Steel H-Posts (150UC23)', numPosts, 'posts', 0, 'STRUCTURAL',
+          `Posts at 2.4m centres; qty = ⌈${length.toFixed(1)}m ÷ 2.4⌉ + 1`,
+          'Galvanised 150UC23 steel H-columns'),
+        mat('Concrete — Post Footings', +(numPosts * 0.12).toFixed(2), 'm³', 5, 'CONCRETE',
+          `Each footing 400mm dia × 900mm deep = 0.12 m³; qty = ${numPosts} footings`,
+          'N20/10 concrete, min 25 MPa'),
+        mat('Drainage Aggregate (20mm)', +(length * 0.3 * height * 0.3).toFixed(2), 'm³', 10, 'DRAINAGE',
+          '300mm wide × 300mm deep drainage zone behind wall face',
+          'Clean crushed rock, no fines'),
+        mat('Ag Pipe — 100mm Slotted', Math.ceil(length), 'lin.m', 5, 'DRAINAGE',
+          'Full wall length at base of drainage zone',
+          'Perforated PVC with geofabric sock'),
+        mat('Geofabric Cloth', Math.ceil(length * (height + 0.6)), 'm²', 10, 'DRAINAGE',
+          `Width = wall height + 0.6m return; area = ${length.toFixed(1)}m × (${height}m + 0.6m)`,
+          'Non-woven geotextile, min 150 g/m²'),
+        mat('Backfill — Select Material', +(length * 0.3 * height).toFixed(2), 'm³', 10, 'EARTHWORKS',
+          '300mm deep compacted fill behind sleepers',
+          'Compacted in 150mm layers to 95% MDD'),
       ];
 
-    case 'reinforced-masonry':
+    case 'reinforced-masonry': {
+      const blocks = Math.ceil(area / (0.4 * 0.2));
+      const vertBars = Math.ceil(length / 0.4);
+      const horizBars = Math.ceil(height / 0.2);
       return [
-        { item: 'Concrete Blocks (200mm)', quantity: Math.ceil(area / (0.4 * 0.2)).toString(), unit: 'blocks', notes: '400x200mm blocks' },
-        { item: 'Reinforcement (N12 bars)', quantity: Math.ceil(length / 0.4 * height / 0.4).toString(), unit: 'bars', notes: 'Vertical and horizontal' },
-        { item: 'Grout Fill', quantity: (area * 0.2 * 0.5).toFixed(2), unit: 'm³', notes: 'Core fill allowance' },
-        { item: 'Concrete Footing', quantity: (length * 0.6 * 0.3).toFixed(2), unit: 'm³', notes: '600mm wide x 300mm deep' },
-        { item: 'Ag Pipe', quantity: Math.ceil(length).toString(), unit: 'lin.m', notes: 'Full length' },
-        { item: 'Geofabric', quantity: Math.ceil(length * (height + 0.6)).toString(), unit: 'm²', notes: 'Drainage zone' },
+        mat('Concrete Blocks (200mm series)', blocks, 'blocks', 5, 'MASONRY',
+          `Block face area = 400×200mm (0.08 m²); qty = ${area.toFixed(1)} m² ÷ 0.08`,
+          '200mm hollow core masonry units'),
+        mat('Reinforcement — N12 Vertical', vertBars, 'bars', 5, 'REINFORCEMENT',
+          `Vertical bars at 400mm centres; qty = ⌈${length.toFixed(1)}m ÷ 0.4⌉`,
+          'Deformed bar Grade 500N'),
+        mat('Reinforcement — N12 Horizontal', horizBars * Math.ceil(length / 6), 'bars', 5, 'REINFORCEMENT',
+          `Horizontal bars at 200mm vert spacing × wall length in 6m bars`,
+          'Truss-type or straight bar in bond beam'),
+        mat('Grout Fill (core)', +(area * 0.2 * 0.5).toFixed(2), 'm³', 5, 'CONCRETE',
+          'Core fill allowance: 50% of cores filled at 200mm wall width',
+          'Grout min 20 MPa, 10mm aggregate'),
+        mat('Concrete Footing (strip)', +(length * 0.6 * 0.3).toFixed(2), 'm³', 5, 'CONCRETE',
+          'Strip footing 600mm wide × 300mm deep',
+          'N20/10, with N12 bars top & bottom'),
+        mat('Ag Pipe — 100mm Slotted', Math.ceil(length), 'lin.m', 5, 'DRAINAGE',
+          'Full length at footing level', ''),
+        mat('Geofabric Cloth', Math.ceil(length * (height + 0.6)), 'm²', 10, 'DRAINAGE',
+          'Drainage zone lining behind wall', 'Non-woven geotextile'),
+        mat('Damp-proof Course (DPC)', Math.ceil(length), 'lin.m', 5, 'MASONRY',
+          'Full length at base of masonry above footing',
+          'Polyethylene DPC membrane'),
       ];
+    }
 
     case 'reinforced-concrete':
       return [
-        { item: 'Concrete (wall stem)', quantity: (length * 0.2 * height).toFixed(2), unit: 'm³', notes: '200mm thick stem' },
-        { item: 'Concrete (base slab)', quantity: (length * (height * 0.7) * 0.3).toFixed(2), unit: 'm³', notes: 'Base = 0.7x height, 300mm thick' },
-        { item: 'Reinforcement', quantity: Math.ceil(area * 15).toString(), unit: 'kg', notes: 'Approx 15kg/m² of wall' },
-        { item: 'Formwork', quantity: Math.ceil(area * 2.2).toString(), unit: 'm²', notes: 'Both faces + base' },
-        { item: 'Ag Pipe', quantity: Math.ceil(length).toString(), unit: 'lin.m', notes: 'Full length' },
-        { item: 'Geofabric', quantity: Math.ceil(length * (height + 0.6)).toString(), unit: 'm²', notes: 'Drainage zone' },
+        mat('Concrete — Wall Stem', +(length * 0.2 * height).toFixed(2), 'm³', 5, 'CONCRETE',
+          `Stem 200mm thick × ${height}m high × ${length.toFixed(1)}m long`,
+          'N32/10 concrete, min 32 MPa'),
+        mat('Concrete — Base Slab', +(length * (height * 0.7) * 0.3).toFixed(2), 'm³', 5, 'CONCRETE',
+          `Base width = 0.7 × height (${(height * 0.7).toFixed(1)}m), 300mm thick`,
+          'N32/10 concrete, min 32 MPa'),
+        mat('Reinforcement — Steel', Math.ceil(area * 15), 'kg', 5, 'REINFORCEMENT',
+          'Approx 15 kg/m² of wall face area (both directions)',
+          'N12 & N16 bars Grade 500N to engineer detail'),
+        mat('Formwork', Math.ceil(area * 2.2), 'm²', 5, 'FORMWORK',
+          'Both faces of stem + base edges; factor 2.2× wall area',
+          'Plywood or steel form, F3 finish'),
+        mat('Kicker / Construction Joint', Math.ceil(length), 'lin.m', 0, 'FORMWORK',
+          'At stem-to-base junction', 'Waterstop if required'),
+        mat('Ag Pipe — 100mm Slotted', Math.ceil(length), 'lin.m', 5, 'DRAINAGE',
+          'Full length behind heel of base', ''),
+        mat('Geofabric Cloth', Math.ceil(length * (height + 0.6)), 'm²', 10, 'DRAINAGE',
+          'Drainage zone lining', 'Non-woven geotextile'),
+        mat('Backfill — Select Material', +(length * 0.5 * height).toFixed(2), 'm³', 10, 'EARTHWORKS',
+          'Behind heel slab, compacted layers', ''),
       ];
 
-    case 'timber':
+    case 'timber': {
+      const timberPosts = Math.ceil(length / 1.8 + 1);
       return [
-        { item: 'Treated Timber Posts (125x125)', quantity: Math.ceil(length / 1.8 + 1).toString(), unit: 'posts', notes: 'At 1.8m centres' },
-        { item: 'Treated Timber Rails (200x50)', quantity: Math.ceil(area / (2.4 * 0.2)).toString(), unit: 'rails', notes: '2.4m lengths' },
-        { item: 'Concrete (post footings)', quantity: (Math.ceil(length / 1.8 + 1) * 0.08).toFixed(2), unit: 'm³', notes: '350mm dia x 800mm deep' },
-        { item: 'Drainage Aggregate', quantity: (length * 0.2 * height * 0.3).toFixed(2), unit: 'm³', notes: '200mm behind wall' },
-        { item: 'Ag Pipe', quantity: Math.ceil(length).toString(), unit: 'lin.m', notes: 'Full length' },
+        mat('Treated Timber Posts (125×125mm)', timberPosts, 'posts', 5, 'STRUCTURAL',
+          `Posts at 1.8m centres; qty = ⌈${length.toFixed(1)}m ÷ 1.8⌉ + 1`,
+          'H5 treated hardwood or CCA pine'),
+        mat('Treated Timber Rails (200×50mm)', Math.ceil(area / (2.4 * 0.2)), 'rails', 5, 'STRUCTURAL',
+          'Rails in 2.4m lengths stacked horizontally',
+          'H4 treated, bolted to posts'),
+        mat('Coach Bolts (M12×150mm)', timberPosts * Math.ceil(height / 0.2) * 2, 'bolts', 5, 'FIXINGS',
+          '2 bolts per rail-post connection',
+          'Hot-dip galvanised'),
+        mat('Concrete — Post Footings', +(timberPosts * 0.08).toFixed(2), 'm³', 5, 'CONCRETE',
+          `Each footing 350mm dia × 800mm deep = 0.08 m³; qty = ${timberPosts}`,
+          'N20/10 concrete'),
+        mat('Drainage Aggregate (20mm)', +(length * 0.2 * height * 0.3).toFixed(2), 'm³', 10, 'DRAINAGE',
+          '200mm wide behind wall', 'Clean crushed rock'),
+        mat('Ag Pipe — 100mm Slotted', Math.ceil(length), 'lin.m', 5, 'DRAINAGE',
+          'Full length at base', ''),
       ];
+    }
 
     case 'gabion':
       return [
-        { item: 'Gabion Baskets (2x1x1m)', quantity: Math.ceil(length / 2 * Math.ceil(height)).toString(), unit: 'baskets', notes: 'Stacked to height' },
-        { item: 'Gabion Stone Fill', quantity: (length * 1.0 * height).toFixed(2), unit: 'm³', notes: '1m deep baskets' },
-        { item: 'Geofabric', quantity: Math.ceil(length * (height + 1)).toString(), unit: 'm²', notes: 'Behind baskets' },
+        mat('Gabion Baskets (2×1×1m)', Math.ceil(length / 2 * Math.ceil(height)), 'baskets', 0, 'STRUCTURAL',
+          `Stacked to ${height}m height; qty = ⌈length ÷ 2⌉ × ⌈height⌉`,
+          'Galfan coated welded mesh, 100×50mm aperture'),
+        mat('Gabion Stone Fill (100–200mm)', +(length * 1.0 * height).toFixed(2), 'm³', 5, 'STRUCTURAL',
+          '1m deep baskets filled with rock',
+          'Durable igneous rock, min 100mm'),
+        mat('Geofabric Cloth', Math.ceil(length * (height + 1)), 'm²', 10, 'DRAINAGE',
+          'Behind baskets to prevent soil migration',
+          'Non-woven geotextile'),
+        mat('Spiral / Lacing Wire', Math.ceil(length / 2 * Math.ceil(height)) * 4, 'metres', 5, 'FIXINGS',
+          '~4m wire per basket for lacing panels',
+          'Galfan coated wire'),
       ];
 
     default:
       return [
-        { item: 'Wall Area', quantity: area.toFixed(1), unit: 'm²', notes: 'Custom wall - specify materials' },
-        { item: 'Wall Length', quantity: length.toFixed(1), unit: 'lin.m', notes: '' },
+        mat('Wall Area (custom)', +area.toFixed(1), 'm²', 5, 'GENERAL',
+          'Custom wall — specify materials per engineer',
+          'Contact engineer for detailed specification'),
+        mat('Wall Length', +length.toFixed(1), 'lin.m', 0, 'GENERAL',
+          'Total wall length', ''),
       ];
   }
 }
 
-/**
- * Get total wall length across all segments
- */
 export function getTotalWallLength(walls: WallSegment[]): number {
   return walls.reduce((sum, w) => sum + w.length, 0);
 }
 
-/**
- * Generate wall name (Wall A, Wall B, ...)
- */
 export function generateWallName(index: number): string {
   return `Wall ${String.fromCharCode(65 + index)}`;
 }

@@ -99,7 +99,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         // Materials
         const materials = estimateMaterials(wall);
         materials.forEach(m => {
-          doc.text(`  • ${m.item}: ${m.quantity} ${m.unit} ${m.notes ? `(${m.notes})` : ''}`, 20, y);
+          doc.text(`  • ${m.item}: ${m.qtyWithWastage} ${m.unit} (incl. ${m.wastagePercent}% wastage)`, 20, y);
           y += 4;
         });
         y += 4;
@@ -139,22 +139,31 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
   const generateCSV = useCallback(() => {
     setLoadingCSV(true);
     try {
-      const headers = ['Segment Name', 'Wall Type', 'Length (m)', 'Min Height (m)', 'Max Height (m)', 'Offset Dwelling (m)', 'Offset Boundary (m)', 'Surcharge', 'Fence Above', 'Drainage', 'Notes'];
-      const rows = project.walls.map(w => [
-        w.name, WALL_TYPE_LABELS[w.wallType], w.length.toFixed(1), w.minHeight.toString(), w.maxHeight.toString(),
-        w.offsetFromDwelling.toString(), w.offsetFromBoundary.toString(),
-        w.hasSurcharge ? 'Yes' : 'No', w.hasFenceAbove ? 'Yes' : 'No', w.hasDrainageRequired ? 'Yes' : 'No', w.notes,
-      ]);
+      const csvLines: string[] = [];
+      const headers = ['SR', 'Wall', 'Category', 'Description', 'Quantity', 'Wastage %', 'Qty With Wastage', 'Unit', 'Assumption'];
+      csvLines.push(headers.map(c => `"${c}"`).join(','));
 
-      const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+      let sr = 0;
+      project.walls.forEach(wall => {
+        const materials = estimateMaterials(wall);
+        materials.forEach(m => {
+          sr++;
+          csvLines.push([
+            sr.toString(), wall.name, m.category, m.item, m.quantity,
+            m.wastagePercent.toString(), m.qtyWithWastage, m.unit, m.assumption,
+          ].map(c => `"${c}"`).join(','));
+        });
+      });
+
+      const csv = csvLines.join('\n');
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `wall-schedule-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.csv`;
+      a.download = `material-takeoff-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('CSV downloaded', { description: 'Wall schedule spreadsheet' });
+      toast.success('CSV downloaded');
     } catch {
       toast.error('Failed to generate CSV');
     } finally {
