@@ -25,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { fetchSingleElevation } from '@/lib/elevationService';
 
 type MapTypeId = 'satellite' | 'hybrid';
 
