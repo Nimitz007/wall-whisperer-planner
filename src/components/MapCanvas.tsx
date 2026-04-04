@@ -53,6 +53,7 @@ const MapCanvas = ({
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
+    map.setMapTypeId('hybrid');
   }, []);
 
   // Fly to center when it changes
