@@ -33,6 +33,7 @@ export interface WallSegment {
   offsetFromBoundary: number;
   hasSurcharge: boolean;
   hasFenceAbove: boolean;
+  fenceHeight: number; // metres, default 1.5
   hasDrainageRequired: boolean;
   onBoundary: boolean;
   notes: string;
