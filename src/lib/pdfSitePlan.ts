@@ -80,6 +80,17 @@ async function loadLogoDataUrl(): Promise<string | null> {
   } catch { return null; }
 }
 
+// ─── WATERMARK ─────────────────────────────────────────────
+function drawWatermark(doc: jsPDF) {
+  doc.saveGraphicsState();
+  doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
+  doc.setFontSize(72);
+  doc.setFont(FONT, 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text('SIMPLE ENGINEERS', A3_W / 2, A3_H / 2, { align: 'center', angle: 35 });
+  doc.restoreGraphicsState();
+}
+
 // ─── DRAWING PRIMITIVES ───────────────────────────────────
 
 function drawBorder(doc: jsPDF) {
