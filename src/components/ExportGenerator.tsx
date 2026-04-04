@@ -10,7 +10,7 @@ import { useBranding } from '@/contexts/BrandingContext';
 
 interface ExportGeneratorProps {
   project: ProjectState;
-  mapboxToken?: string;
+  googleMapsApiKey?: string;
 }
 
 const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
