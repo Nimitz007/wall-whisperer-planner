@@ -34,6 +34,7 @@ export interface WallSegment {
   hasSurcharge: boolean;
   hasFenceAbove: boolean;
   hasDrainageRequired: boolean;
+  onBoundary: boolean;
   notes: string;
   materialAssumptions: string;
 }
