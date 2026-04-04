@@ -13,7 +13,7 @@ interface ExportGeneratorProps {
   googleMapsApiKey?: string;
 }
 
-const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
+const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) => {
   const branding = useBranding();
   const [loadingSitePlan, setLoadingSitePlan] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
