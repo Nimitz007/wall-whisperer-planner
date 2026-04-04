@@ -61,6 +61,7 @@ const PlannerSection = () => {
   const [activeWallId, setActiveWallId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
+  const [triedNext, setTriedNext] = useState(false);
   const mapCenter =
     project.details.lat && project.details.lng
       ? ([project.details.lng, project.details.lat] as [number, number])
