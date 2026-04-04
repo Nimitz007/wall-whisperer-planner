@@ -1,9 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
-import { calculatePolylineLength, generateWallName } from '@/lib/wallCalculations';
-import { Map, Pencil, Trash2, Undo2, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { calculatePolylineLength } from '@/lib/wallCalculations';
+import { Map, Trash2, MapPin } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
