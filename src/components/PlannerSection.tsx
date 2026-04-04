@@ -148,7 +148,6 @@ const PlannerSection = () => {
           <AddressSearch
             onSelect={(result) => {
               updateDetails(result);
-              setStep(1);
               toast.success("Property found", {
                 description: result.address,
               });
