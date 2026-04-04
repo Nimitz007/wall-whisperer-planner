@@ -234,13 +234,17 @@ const PlannerSection = () => {
 
                     <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Client Name</Label>
+                        <Label className="text-sm">Full Name <span className="text-destructive">*</span></Label>
                         <Input
                           value={project.details.clientName}
                           onChange={(e) => updateDetails({ clientName: e.target.value })}
                           placeholder="Full name"
                           className="rounded-lg"
+                          required
                         />
+                        {project.details.clientName.trim().length === 0 && (
+                          <p className="text-xs text-muted-foreground">Required to proceed</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-sm">Email</Label>
