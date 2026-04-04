@@ -203,15 +203,39 @@ const MapCanvas = ({
         toast.info('Snapped to wall endpoint', { duration: 1500 });
       }
 
+      const nodeIndex = currentPoints.length;
+
       // Add point first, then prompt for height
       onCurrentPointsChange((prev) => {
         const newPoints = [...prev, point];
         return newPoints;
       });
-      
-      // Show height prompt
+
+      // Fetch elevation and pre-fill height suggestion
+      setSuggestedElevation(null);
+      setElevationLoading(true);
       setHeightInput('');
-      setHeightPrompt({ point, index: currentPoints.length });
+
+      fetchSingleElevation(point.lat, point.lng).then((elev) => {
+        setElevationLoading(false);
+        if (elev !== null) {
+          // First node of the current wall: store as reference elevation
+          if (nodeIndex === 0) {
+            firstNodeElevationRef.current = elev;
+            setSuggestedElevation(null); // no height diff for first node
+          } else if (firstNodeElevationRef.current !== null) {
+            const diff = Math.abs(elev - firstNodeElevationRef.current);
+            const rounded = Math.round(diff * 10) / 10;
+            if (rounded > 0) {
+              setSuggestedElevation(rounded);
+              setHeightInput(String(rounded));
+            }
+          }
+        }
+      });
+
+      // Show height prompt
+      setHeightPrompt({ point, index: nodeIndex });
     },
     [isDrawing, onCurrentPointsChange, findSnapPoint, currentPoints.length]
   );
