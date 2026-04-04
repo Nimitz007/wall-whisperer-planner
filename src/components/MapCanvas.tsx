@@ -146,6 +146,13 @@ const MapCanvas = ({
     if (mapRef.current) mapRef.current.setMapTypeId(mapType);
   }, [mapType]);
 
+  // Reset reference elevation when starting a new wall
+  useEffect(() => {
+    if (isDrawing && currentPoints.length === 0) {
+      firstNodeElevationRef.current = null;
+    }
+  }, [isDrawing, currentPoints.length]);
+
   useEffect(() => {
     if (!mapRef.current) return;
     const mapDiv = mapRef.current.getDiv();
