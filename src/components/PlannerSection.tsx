@@ -283,11 +283,11 @@ const PlannerSection = () => {
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
                           placeholder="04XX XXX XXX"
-                          className={`rounded-lg ${project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                           maxLength={14}
                         />
-                        {project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
+                        {triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
                           <p className="text-xs text-destructive">Phone must be exactly 10 digits</p>
                         )}
                       </div>
