@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength } from '@/lib/wallCalculations';
-import { Map, Trash2, MapPin } from 'lucide-react';
+import { Map, MapPin } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +13,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
@@ -22,14 +32,9 @@ const containerStyle = { width: '100%', height: '100%' };
 
 const LIME_GREEN = '#33E65D';
 const LIME_GREEN_DARK = '#2bc950';
-const SNAP_THRESHOLD_PX = 15; // pixels for snap detection
+const SNAP_THRESHOLD_PX = 15;
 
-/** Calculate angle (degrees) between two vectors meeting at a point */
-function angleBetweenWalls(
-  shared: WallPoint,
-  endA: WallPoint,
-  endB: WallPoint
-): number {
+function angleBetweenWalls(shared: WallPoint, endA: WallPoint, endB: WallPoint): number {
   const dAx = endA.lng - shared.lng;
   const dAy = endA.lat - shared.lat;
   const dBx = endB.lng - shared.lng;
@@ -41,7 +46,6 @@ function angleBetweenWalls(
   return angle;
 }
 
-/** Find all endpoints of existing walls */
 function getEndpoints(walls: WallSegment[]): { wallId: string; pointIndex: number; point: WallPoint }[] {
   const endpoints: { wallId: string; pointIndex: number; point: WallPoint }[] = [];
   walls.forEach((wall) => {
@@ -53,17 +57,14 @@ function getEndpoints(walls: WallSegment[]): { wallId: string; pointIndex: numbe
   return endpoints;
 }
 
-/** Find connected wall pairs and their angles */
 function findWallAngles(walls: WallSegment[]): { position: WallPoint; angle: number; wallNames: [string, string] }[] {
   const results: { position: WallPoint; angle: number; wallNames: [string, string] }[] = [];
-  const threshold = 0.000005; // ~0.5m at equator
-
+  const threshold = 0.000005;
   for (let i = 0; i < walls.length; i++) {
     for (let j = i + 1; j < walls.length; j++) {
       const wA = walls[i];
       const wB = walls[j];
       if (wA.points.length < 2 || wB.points.length < 2) continue;
-
       const endpointsA = [
         { pt: wA.points[0], other: wA.points[1] },
         { pt: wA.points[wA.points.length - 1], other: wA.points[wA.points.length - 2] },
@@ -72,19 +73,11 @@ function findWallAngles(walls: WallSegment[]): { position: WallPoint; angle: num
         { pt: wB.points[0], other: wB.points[1] },
         { pt: wB.points[wB.points.length - 1], other: wB.points[wB.points.length - 2] },
       ];
-
       for (const eA of endpointsA) {
         for (const eB of endpointsB) {
-          if (
-            Math.abs(eA.pt.lat - eB.pt.lat) < threshold &&
-            Math.abs(eA.pt.lng - eB.pt.lng) < threshold
-          ) {
+          if (Math.abs(eA.pt.lat - eB.pt.lat) < threshold && Math.abs(eA.pt.lng - eB.pt.lng) < threshold) {
             const angle = angleBetweenWalls(eA.pt, eA.other, eB.other);
-            results.push({
-              position: eA.pt,
-              angle,
-              wallNames: [wA.name, wB.name],
-            });
+            results.push({ position: eA.pt, angle, wallNames: [wA.name, wB.name] });
           }
         }
       }
@@ -118,6 +111,8 @@ const MapCanvas = ({
   const [mapType, setMapType] = useState<MapTypeId>('hybrid');
   const [wallToDelete, setWallToDelete] = useState<WallSegment | null>(null);
   const [snapTarget, setSnapTarget] = useState<WallPoint | null>(null);
+  const [heightPrompt, setHeightPrompt] = useState<{ point: WallPoint; index: number } | null>(null);
+  const [heightInput, setHeightInput] = useState('');
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -129,7 +124,6 @@ const MapCanvas = ({
     map.setMapTypeId('hybrid');
   }, []);
 
-  // Fly to center when a new address is selected
   const lastCenterRef = useRef<string | null>(null);
   useEffect(() => {
     if (mapRef.current && center) {
@@ -142,20 +136,15 @@ const MapCanvas = ({
     }
   }, [center]);
 
-  // Sync map type
   useEffect(() => {
-    if (mapRef.current) {
-      mapRef.current.setMapTypeId(mapType);
-    }
+    if (mapRef.current) mapRef.current.setMapTypeId(mapType);
   }, [mapType]);
 
-  // Set crosshair cursor when drawing
   useEffect(() => {
     if (!mapRef.current) return;
     const mapDiv = mapRef.current.getDiv();
     if (isDrawing) {
       mapDiv.style.cursor = 'crosshair';
-      // Also override the inner map container
       const inner = mapDiv.querySelector('div[style]') as HTMLElement;
       if (inner) inner.style.cursor = 'crosshair';
     } else {
@@ -165,32 +154,25 @@ const MapCanvas = ({
     }
   }, [isDrawing]);
 
-  // Find nearest endpoint for snapping
   const findSnapPoint = useCallback(
     (latLng: google.maps.LatLng): WallPoint | null => {
       if (!mapRef.current) return null;
       const endpoints = getEndpoints(walls);
       const projection = mapRef.current.getProjection();
       if (!projection) return null;
-
       const clickPixel = projection.fromLatLngToPoint(latLng);
       if (!clickPixel) return null;
-
       const zoom = mapRef.current.getZoom() ?? 20;
       const scale = Math.pow(2, zoom);
-
       let nearest: WallPoint | null = null;
       let nearestDist = Infinity;
-
       for (const ep of endpoints) {
         const epLatLng = new google.maps.LatLng(ep.point.lat, ep.point.lng);
         const epPixel = projection.fromLatLngToPoint(epLatLng);
         if (!epPixel) continue;
-
         const dx = (clickPixel.x - epPixel.x) * scale;
         const dy = (clickPixel.y - epPixel.y) * scale;
         const dist = Math.sqrt(dx * dx + dy * dy);
-
         if (dist < SNAP_THRESHOLD_PX && dist < nearestDist) {
           nearestDist = dist;
           nearest = ep.point;
@@ -204,8 +186,6 @@ const MapCanvas = ({
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
       if (!isDrawing || !e.latLng) return;
-
-      // Try to snap to an existing wall endpoint
       const snapped = findSnapPoint(e.latLng);
       const point: WallPoint = snapped
         ? { lng: snapped.lng, lat: snapped.lat }
@@ -217,35 +197,56 @@ const MapCanvas = ({
         toast.info('Snapped to wall endpoint', { duration: 1500 });
       }
 
-      onCurrentPointsChange((prev) => [...prev, point]);
+      // Add point first, then prompt for height
+      onCurrentPointsChange((prev) => {
+        const newPoints = [...prev, point];
+        return newPoints;
+      });
+      
+      // Show height prompt
+      setHeightInput('');
+      setHeightPrompt({ point, index: currentPoints.length });
     },
-    [isDrawing, onCurrentPointsChange, findSnapPoint]
+    [isDrawing, onCurrentPointsChange, findSnapPoint, currentPoints.length]
   );
 
-  // Handle dragging a node on an existing wall
+  const handleHeightSubmit = useCallback(() => {
+    if (heightPrompt === null) return;
+    const height = parseFloat(heightInput) || 0;
+    onCurrentPointsChange((prev) => {
+      const updated = [...prev];
+      if (updated[heightPrompt.index]) {
+        updated[heightPrompt.index] = { ...updated[heightPrompt.index], height };
+      }
+      return updated;
+    });
+    setHeightPrompt(null);
+    setHeightInput('');
+  }, [heightPrompt, heightInput, onCurrentPointsChange]);
+
+  const handleHeightSkip = useCallback(() => {
+    setHeightPrompt(null);
+    setHeightInput('');
+  }, []);
+
   const handleNodeDragEnd = useCallback(
     (wallId: string, pointIndex: number, newPos: google.maps.LatLng) => {
       const updatedWalls = walls.map((wall) => {
         if (wall.id !== wallId) return wall;
         const newPoints = [...wall.points];
-        newPoints[pointIndex] = { lat: newPos.lat(), lng: newPos.lng() };
-        return {
-          ...wall,
-          points: newPoints,
-          length: calculatePolylineLength(newPoints),
-        };
+        newPoints[pointIndex] = { ...newPoints[pointIndex], lat: newPos.lat(), lng: newPos.lng() };
+        return { ...wall, points: newPoints, length: calculatePolylineLength(newPoints) };
       });
       onWallsChange(updatedWalls);
     },
     [walls, onWallsChange]
   );
 
-  // Handle dragging a node being drawn
   const handleDrawNodeDragEnd = useCallback(
     (pointIndex: number, newPos: google.maps.LatLng) => {
       onCurrentPointsChange((prev) => {
         const updated = [...prev];
-        updated[pointIndex] = { lat: newPos.lat(), lng: newPos.lng() };
+        updated[pointIndex] = { ...updated[pointIndex], lat: newPos.lat(), lng: newPos.lng() };
         return updated;
       });
     },
@@ -263,10 +264,7 @@ const MapCanvas = ({
     toast('Wall deleted', { description: `${name} has been removed` });
   };
 
-  // Calculate angles between connected walls
   const wallAngles = useMemo(() => findWallAngles(walls), [walls]);
-
-  // Endpoint markers for snap hints when drawing
   const endpoints = useMemo(() => (isDrawing ? getEndpoints(walls) : []), [isDrawing, walls]);
 
   const initialCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
@@ -327,7 +325,6 @@ const MapCanvas = ({
                   }}
                   onClick={() => onActiveWallChange(wall.id)}
                 />
-                {/* Node markers — draggable */}
                 {wall.points.map((p, i) => (
                   <Marker
                     key={`${wall.id}-node-${i}`}
@@ -346,7 +343,20 @@ const MapCanvas = ({
                     }}
                   />
                 ))}
-                {/* Label */}
+                {/* Height labels at each point */}
+                {wall.points.map((p, i) => (
+                  p.height && p.height > 0 ? (
+                    <InfoWindow
+                      key={`${wall.id}-height-${i}`}
+                      position={{ lat: p.lat, lng: p.lng }}
+                      options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -20) }}
+                    >
+                      <div style={{ padding: '1px 4px', fontSize: '10px', fontWeight: 700, color: '#fff', background: 'rgba(0,0,0,0.7)', borderRadius: '3px', whiteSpace: 'nowrap' }}>
+                        {p.height}m
+                      </div>
+                    </InfoWindow>
+                  ) : null
+                ))}
                 {wall.points.length >= 2 && (
                   <InfoWindow
                     position={(() => {
@@ -364,7 +374,7 @@ const MapCanvas = ({
             );
           })}
 
-          {/* Snap hint markers — show existing endpoints as pulsing targets when drawing */}
+          {/* Snap hint markers */}
           {endpoints.map((ep, i) => (
             <Marker
               key={`snap-hint-${i}`}
@@ -397,7 +407,7 @@ const MapCanvas = ({
             />
           )}
 
-          {/* Angle labels between connected walls */}
+          {/* Angle labels */}
           {wallAngles.map((wa, i) => (
             <InfoWindow
               key={`angle-${i}`}
@@ -405,13 +415,8 @@ const MapCanvas = ({
               options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -25) }}
             >
               <div style={{
-                padding: '2px 6px',
-                fontSize: '11px',
-                fontWeight: 700,
-                color: '#fff',
-                background: 'rgba(0,0,0,0.7)',
-                borderRadius: '4px',
-                whiteSpace: 'nowrap',
+                padding: '2px 6px', fontSize: '11px', fontWeight: 700, color: '#fff',
+                background: 'rgba(0,0,0,0.7)', borderRadius: '4px', whiteSpace: 'nowrap',
               }}>
                 {wa.angle.toFixed(1)}°
               </div>
@@ -488,25 +493,33 @@ const MapCanvas = ({
         </div>
       )}
 
-      {/* Wall list */}
-      {walls.length > 0 && !isDrawing && (
-        <div className="absolute bottom-3 left-3 max-h-[140px] max-w-[200px] space-y-1 overflow-y-auto sm:bottom-4 sm:left-4 sm:max-h-none sm:max-w-xs">
-          {walls.map((wall) => (
-            <div
-              key={wall.id}
-              onClick={() => onActiveWallChange(wall.id)}
-              className={`flex cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-xs shadow-card transition-colors sm:px-3 sm:py-2 sm:text-sm ${
-                activeWallId === wall.id ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-accent'
-              }`}
-            >
-              <span className="font-medium">{wall.name}: {wall.length.toFixed(1)}m</span>
-              <button onClick={(e) => { e.stopPropagation(); confirmDeleteWall(wall); }} className="ml-2 opacity-60 hover:opacity-100">
-                <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Height prompt dialog */}
+      <Dialog open={!!heightPrompt} onOpenChange={(open) => { if (!open) handleHeightSkip(); }}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle className="text-base">Wall Height at Point {heightPrompt ? heightPrompt.index + 1 : ''}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm">Height at this point (metres)</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              placeholder="e.g. 1.2"
+              value={heightInput}
+              onChange={(e) => setHeightInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleHeightSubmit(); }}
+              autoFocus
+              className="rounded-lg"
+            />
+            <p className="text-xs text-muted-foreground">Enter the retaining wall height at this specific point</p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={handleHeightSkip}>Skip</Button>
+            <Button size="sm" onClick={handleHeightSubmit}>Set Height</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirmation */}
       <AlertDialog open={!!wallToDelete} onOpenChange={(open) => !open && setWallToDelete(null)}>

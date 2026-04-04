@@ -18,6 +18,7 @@ export const WALL_TYPE_LABELS: Record<WallType, string> = {
 export interface WallPoint {
   lng: number;
   lat: number;
+  height?: number; // height at this point in metres
 }
 
 export interface WallSegment {
