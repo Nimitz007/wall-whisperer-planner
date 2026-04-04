@@ -117,7 +117,7 @@ const PlannerSection = () => {
       case 0: return hasAddress && hasContactInfo;
       case 1: return hasWalls;
       case 2: return hasWalls && project.walls.every(w => w.averageHeight > 0);
-      case 3: return true; // Context is optional
+      case 3: return hasWalls && (!!project.siteContext.distanceToHouse || !!project.siteContext.distanceToBoundary || !!project.siteContext.slopeNotes); // Context complete when has content
       case 4: return hasWalls;
       case 5: return project.isPaid;
       default: return false;
