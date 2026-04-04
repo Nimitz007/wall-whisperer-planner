@@ -688,6 +688,15 @@ const MapCanvas = ({
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setShowTerrain((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium shadow-card transition-colors sm:px-3 sm:py-2 sm:text-xs ${
+            showTerrain ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-accent'
+          }`}
+        >
+          <Mountain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          {terrainLoading ? 'Loading…' : 'Terrain'}
+        </button>
       </div>
 
       {/* Drawing instructions */}
