@@ -111,10 +111,6 @@ const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
             </div>
           </div>
 
-          {/* Disclaimer */}
-          <p className="mt-6 text-xs text-white/40 drop-shadow-sm">
-            Preliminary concept planning tool only — not for construction or council approval.
-          </p>
         </div>
       </div>
 
