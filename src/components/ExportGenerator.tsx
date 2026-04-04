@@ -4,7 +4,7 @@ import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
 import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
 import { Button } from '@/components/ui/button';
-import { FileText, Table, Download, Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBranding } from '@/contexts/BrandingContext';
 
