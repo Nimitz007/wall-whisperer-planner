@@ -247,16 +247,20 @@ const PlannerSection = () => {
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Email</Label>
+                        <Label className="text-sm">Email <span className="text-destructive">*</span></Label>
                         <Input
                           type="email"
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
                           placeholder="email@example.com"
                           className={`rounded-lg ${!isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          required
                         />
-                        {!isEmailValid && (
+                        {!isEmailValid && project.details.clientEmail.length > 0 && (
                           <p className="text-xs text-destructive">Please enter a valid email address</p>
+                        )}
+                        {project.details.clientEmail.length === 0 && (
+                          <p className="text-xs text-muted-foreground">Required to proceed</p>
                         )}
                       </div>
                       <div className="space-y-1.5">
