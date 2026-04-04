@@ -1,7 +1,12 @@
 import { motion } from 'framer-motion';
-import { ArrowDown, Ruler, FileText, Shield } from 'lucide-react';
+import { ArrowDown, ArrowRight, MoveRight, Ruler, FileText, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBranding } from '@/contexts/BrandingContext';
+import heroImage from '@/assets/retaining-wall-hero.webp';
+
+// Force eager decode for hero LCP image
+const heroImagePreload = new Image();
+heroImagePreload.src = heroImage;
 
 interface HeroSectionProps {
   onStartPlanning: () => void;
@@ -11,13 +16,20 @@ const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
   const branding = useBranding();
 
   return (
-    <section className="relative flex min-h-[70vh] items-center justify-center overflow-hidden bg-[#106045]">
-      {/* Dark teal gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0d4e38] via-[#106045] to-[#1a7a5a]" />
-      <div className="absolute inset-0 opacity-[0.04]" style={{
-        backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.3) 1px, transparent 0)`,
-        backgroundSize: '40px 40px',
-      }} />
+    <section className="relative min-h-screen flex items-center justify-center">
+      {/* Background image with overlay */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <img
+          src={heroImage}
+          alt="Retaining wall construction"
+          className="w-full h-full object-cover"
+          loading="eager"
+          fetchPriority="high"
+          width={1920}
+          height={1080}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0d4e38]/80 via-[#106045]/70 to-[#106045]/60" />
+      </div>
 
       {/* Top bar */}
       <div className="absolute left-0 right-0 top-0 z-20 flex items-center justify-between px-6 py-4 sm:px-10">
@@ -29,7 +41,7 @@ const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
               className="h-10 w-auto object-contain"
             />
           ) : (
-            <span className="text-base font-semibold text-white">{branding.companyName}</span>
+            <span className="text-base font-semibold text-white drop-shadow-md">{branding.companyName}</span>
           )}
         </div>
         {branding.contactUrl && (
@@ -45,67 +57,83 @@ const HeroSection = ({ onStartPlanning }: HeroSectionProps) => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h1 className="text-4xl font-bold leading-[1.1] tracking-tight text-white sm:text-5xl md:text-6xl">
-            Retaining Wall
-            <span className="block text-[#33E65D]"> Planner</span>
+      <div className="container mx-auto px-4 md:px-6 relative z-10 text-center">
+        <div className="max-w-4xl mx-auto">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight drop-shadow-lg">
+            Retaining Wall{' '}
+            <span className="inline-flex items-center gap-2 whitespace-nowrap">
+              <MoveRight
+                className="h-8 w-8 md:h-14 md:w-14 animate-fade-in translate-y-1 md:translate-y-2 text-[#3be35f]"
+                strokeWidth={3}
+                style={{ animationDelay: '0.3s' }}
+              />
+              <span className="text-[#3be35f]">Planner</span>
+            </span>
           </h1>
 
-          <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
+          <p className="text-lg md:text-2xl text-white/90 mb-10 max-w-2xl mx-auto drop-shadow-md">
             Search your property, sketch your retaining walls, and export a concept site plan.
-            Ideal for early planning and engineering review.
           </p>
 
-          {/* CTA */}
-          <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button
               onClick={onStartPlanning}
               size="lg"
-              className="h-12 rounded-xl bg-[#33E65D] px-8 text-sm font-semibold text-white shadow-lg transition-all hover:bg-[#2bc950] hover:shadow-xl sm:h-14 sm:px-10 sm:text-base"
+              className="text-base md:text-lg group bg-[#33E65D] text-white hover:bg-[#2bc950] shadow-lg"
             >
               Start Planning
-              <ArrowDown className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
+            </Button>
+            <Button
+              onClick={onStartPlanning}
+              size="lg"
+              variant="outline"
+              className="text-base md:text-lg border-white/30 bg-white/10 text-white hover:bg-white/20 hover:border-white/50"
+            >
+              Learn More
             </Button>
           </div>
 
           {/* Trust badges */}
-          <div className="mx-auto mt-10 flex max-w-md flex-wrap items-center justify-center gap-6 text-white/70 sm:gap-8">
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <Ruler className="h-4 w-4 text-[#33E65D]" />
+          <div className="mx-auto mt-12 flex max-w-lg flex-wrap items-center justify-center gap-6 text-white/70 sm:gap-8">
+            <div className="flex items-center gap-2 text-sm">
+              <Ruler className="h-4 w-4 text-[#3be35f]" />
               <span>Live measurements</span>
             </div>
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <FileText className="h-4 w-4 text-[#33E65D]" />
+            <div className="flex items-center gap-2 text-sm">
+              <FileText className="h-4 w-4 text-[#3be35f]" />
               <span>PDF export</span>
             </div>
-            <div className="flex items-center gap-2 text-xs sm:text-sm">
-              <Shield className="h-4 w-4 text-[#33E65D]" />
+            <div className="flex items-center gap-2 text-sm">
+              <Shield className="h-4 w-4 text-[#3be35f]" />
               <span>Concept tool</span>
             </div>
           </div>
 
           {/* Disclaimer */}
-          <p className="mt-6 text-[11px] text-white/40">
+          <p className="mt-6 text-xs text-white/40 drop-shadow-sm">
             Preliminary concept planning tool only — not for construction or council approval.
           </p>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
-        <button
-          onClick={onStartPlanning}
-          className="flex flex-col items-center gap-1 text-white/40 transition-colors hover:text-white/70"
-        >
-          <span className="text-[10px] font-medium uppercase tracking-[0.15em]">Scroll</span>
-          <ArrowDown className="h-4 w-4 animate-bounce" />
-        </button>
-      </div>
+      {/* Scroll Indicator */}
+      <motion.button
+        onClick={onStartPlanning}
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/60 hover:text-white transition-colors duration-300 cursor-pointer z-10"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.6 }}
+        aria-label="Scroll to planner"
+      >
+        <span className="text-xs uppercase tracking-widest font-medium">Scroll</span>
+        <motion.div
+          animate={{ y: [0, 8, 0] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="w-px h-8 bg-gradient-to-b from-[#3be35f] to-transparent"
+        />
+      </motion.button>
     </section>
   );
 };
