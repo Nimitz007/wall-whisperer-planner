@@ -359,6 +359,7 @@ const PlannerSection = () => {
                                 hasSurcharge: false,
                                 hasFenceAbove: false,
                                 hasDrainageRequired: true,
+                                onBoundary: false,
                                 notes: '',
                                 materialAssumptions: '',
                               };
