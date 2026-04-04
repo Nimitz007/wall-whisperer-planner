@@ -705,12 +705,13 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     // North arrow
     drawNorthArrow(doc, BORDER_INNER + 20, BORDER_INNER + 22);
 
-    // Legend - position towards the right, near title block
-    const legendX = drawingAreaRight - 155;
+    // Legend - right-aligned, close to the title block
+    const tbX = A3_W - BORDER_INNER - TB_WIDTH;
+    const legendX = tbX - 165;
     drawLegend(doc, legendX, BORDER_INNER + 10);
 
-    // Note boxes - also towards the right
-    drawNoteBoxes(doc, legendX, BORDER_INNER + 65, 150);
+    // Note boxes - right-aligned near title block
+    drawNoteBoxes(doc, legendX, BORDER_INNER + 65, tbX - legendX - 5);
 
     // Scale label bottom-left
     doc.setFontSize(10); doc.setFont(FONT, 'bold'); doc.setTextColor(...C.black);
