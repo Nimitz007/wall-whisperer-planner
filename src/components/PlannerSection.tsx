@@ -192,7 +192,7 @@ const PlannerSection = () => {
                       disabled={!accessible}
                       className={`relative flex flex-1 flex-col items-center gap-1 px-3 py-3 text-[10px] font-medium transition-colors ${
                         active
-                          ? "border-b-2 border-primary text-primary"
+                          ? "text-primary"
                           : accessible
                           ? "text-muted-foreground hover:text-foreground"
                           : "cursor-not-allowed text-muted-foreground/40"
