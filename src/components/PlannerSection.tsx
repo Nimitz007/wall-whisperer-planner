@@ -435,73 +435,8 @@ const PlannerSection = () => {
                   </div>
                 )}
 
+
                 {project.currentStep === 2 && (
-                  <div className="space-y-4">
-                    <h3 className="font-display text-lg font-semibold text-foreground">Site Context</h3>
-                    <p className="text-xs text-muted-foreground">
-                      All measurements are user-confirmed approximations. Concept only.
-                    </p>
-
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Approximate distance to house</Label>
-                        <Input
-                          value={project.siteContext.distanceToHouse}
-                          onChange={(e) => updateSiteContext({ distanceToHouse: e.target.value })}
-                          placeholder="e.g. 3.5m"
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Approximate distance to boundary</Label>
-                        <Input
-                          value={project.siteContext.distanceToBoundary}
-                          onChange={(e) => updateSiteContext({ distanceToBoundary: e.target.value })}
-                          placeholder="e.g. 1.2m"
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Slope notes</Label>
-                        <Textarea
-                          value={project.siteContext.slopeNotes}
-                          onChange={(e) => updateSiteContext({ slopeNotes: e.target.value })}
-                          placeholder="Describe the site slope..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Access notes</Label>
-                        <Textarea
-                          value={project.siteContext.accessNotes}
-                          onChange={(e) => updateSiteContext({ accessNotes: e.target.value })}
-                          placeholder="Vehicle access, restrictions..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Adjoining structures</Label>
-                        <Textarea
-                          value={project.siteContext.adjoiningStructures}
-                          onChange={(e) => updateSiteContext({ adjoiningStructures: e.target.value })}
-                          placeholder="Fences, sheds, pools..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Additional comments</Label>
-                        <Textarea
-                          value={project.siteContext.comments}
-                          onChange={(e) => updateSiteContext({ comments: e.target.value })}
-                          placeholder="Anything else relevant..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {project.currentStep === 3 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Summary</h3>
                     <ProjectSummary project={project} />
