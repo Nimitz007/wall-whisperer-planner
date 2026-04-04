@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { BrandingConfig, loadBranding, brandingToHSL, brandingToHSLLight, brandingToHSLDark } from '@/lib/branding';
 
 const BrandingContext = createContext<BrandingConfig | null>(null);
