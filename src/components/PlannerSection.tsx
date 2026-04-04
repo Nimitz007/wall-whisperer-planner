@@ -98,7 +98,7 @@ const PlannerSection = () => {
   const hasContactInfo =
     isFullName &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail) &&
-    project.details.clientPhone.replace(/\D/g, '').length >= 10;
+    project.details.clientPhone.replace(/\D/g, '').length === 10;
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
@@ -277,11 +277,12 @@ const PlannerSection = () => {
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
                           placeholder="04XX XXX XXX"
-                          className={`rounded-lg ${project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length < 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
+                          maxLength={14}
                         />
-                        {project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length < 10 && (
-                          <p className="text-xs text-destructive">Please enter at least 10 digits</p>
+                        {project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
+                          <p className="text-xs text-destructive">Phone must be exactly 10 digits</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 pt-1">
