@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Pencil, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2, Trash2 } from "lucide-react";
+import { MapPin, Pencil, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2, Trash2 } from "lucide-react";
 
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
