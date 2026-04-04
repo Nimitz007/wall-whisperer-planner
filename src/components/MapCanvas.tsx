@@ -69,7 +69,7 @@ const MapCanvas = ({
       const point: WallPoint = { lng: e.latLng.lng(), lat: e.latLng.lat() };
       onCurrentPointsChange((prev) => [...prev, point]);
     },
-    [isDrawing]
+    [isDrawing, onCurrentPointsChange]
   );
 
   const finishWall = () => {
