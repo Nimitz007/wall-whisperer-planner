@@ -40,7 +40,8 @@ const PlannerSection = () => {
       clientName: "",
       clientEmail: "",
       clientPhone: "",
-      projectReference: "",
+      isBuilder: false,
+      companyName: "",
     },
     walls: [],
     siteContext: {
