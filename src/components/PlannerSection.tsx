@@ -105,7 +105,7 @@ const PlannerSection = () => {
       case 0: return true; // Property always accessible
       case 1: return hasAddress && hasContactInfo; // Draw requires address + contact
       case 2: return hasAddress && hasContactInfo && hasWalls; // Settings requires walls
-      case 3: return hasAddress && hasContactInfo; // Context accessible after address + contact
+      case 3: return hasAddress && hasContactInfo && hasWalls; // Context requires walls
       case 4: return hasAddress && hasContactInfo && hasWalls; // Summary requires walls
       case 5: return hasAddress && hasContactInfo && hasWalls; // Export requires walls
       default: return false;
