@@ -15,8 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoidXBsaWZ0YmEiLCJhIjoiY21rMHA3MXc2NzdnbTNjcTJzd2R1aW9jOCJ9.AbKUSzkWQp2MKowmen69LA";
-// Replace with your actual Mapbox public token
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
 const STEPS = [
   { label: "Property", icon: MapPin },
