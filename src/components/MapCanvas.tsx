@@ -377,6 +377,7 @@ const MapCanvas = ({
           zoom={initialZoom}
           onLoad={onMapLoad}
           onClick={handleMapClick}
+          onIdle={handleMapIdle}
           mapTypeId={mapType}
           options={{
             disableDefaultUI: false,
