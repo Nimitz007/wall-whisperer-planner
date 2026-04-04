@@ -93,15 +93,6 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         if (y > 260) { doc.addPage(); y = 20; }
       });
 
-      // Site context
-      if (project.siteContext.slopeNotes || project.siteContext.comments) {
-        addSection('Site Context Notes');
-        if (project.siteContext.slopeNotes) { doc.text(`Slope: ${project.siteContext.slopeNotes}`, 15, y); y += 5; }
-        if (project.siteContext.accessNotes) { doc.text(`Access: ${project.siteContext.accessNotes}`, 15, y); y += 5; }
-        if (project.siteContext.adjoiningStructures) { doc.text(`Adjoining: ${project.siteContext.adjoiningStructures}`, 15, y); y += 5; }
-        if (project.siteContext.comments) { doc.text(`Comments: ${project.siteContext.comments}`, 15, y); y += 5; }
-      }
-
       // Disclaimer page
       doc.addPage();
       doc.setFontSize(14);
