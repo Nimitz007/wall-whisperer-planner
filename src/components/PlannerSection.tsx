@@ -248,7 +248,7 @@ const PlannerSection = () => {
                         <Input
                           value={project.details.clientName}
                           onChange={(e) => updateDetails({ clientName: e.target.value })}
-                          placeholder="First and last name"
+                          placeholder="Full Name"
                           className={`rounded-lg ${project.details.clientName.trim().length > 0 && !isFullName ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
