@@ -28,17 +28,23 @@ const MapCanvas = ({
   onWallsChange,
   activeWallId,
   onActiveWallChange,
+  isDrawing,
+  onIsDrawingChange,
+  currentPoints,
+  onCurrentPointsChange,
 }: {
   center: [number, number] | null; // [lng, lat]
   walls: WallSegment[];
   onWallsChange: (walls: WallSegment[]) => void;
   activeWallId: string | null;
   onActiveWallChange: (id: string | null) => void;
+  isDrawing: boolean;
+  onIsDrawingChange: (v: boolean) => void;
+  currentPoints: WallPoint[];
+  onCurrentPointsChange: (points: WallPoint[] | ((prev: WallPoint[]) => WallPoint[])) => void;
 }) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<MapTypeId>('hybrid');
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
   const [wallToDelete, setWallToDelete] = useState<WallSegment | null>(null);
 
   const { isLoaded } = useJsApiLoader({
