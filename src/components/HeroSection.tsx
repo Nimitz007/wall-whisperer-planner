@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowDown, ArrowRight, MoveRight, Ruler, FileText, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBranding } from '@/contexts/BrandingContext';
-import heroImage from '@/assets/retaining-wall-hero.webp';
+import heroImage from '@/assets/retaining-wall-hero.png';
 
 // Force eager decode for hero LCP image
 const heroImagePreload = new Image();
