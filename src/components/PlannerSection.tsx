@@ -338,15 +338,15 @@ const PlannerSection = () => {
                               }
                               const length = calculatePolylineLength(currentPoints);
                               const heights = currentPoints.map(p => p.height || 0).filter(h => h > 0);
-                              const avgHeight = heights.length > 0 ? heights.reduce((a, b) => a + b, 0) / heights.length : 1.0;
                               const maxH = heights.length > 0 ? Math.max(...heights) : 1.2;
+                              const minH = heights.length > 0 ? Math.min(...heights) : 0.8;
                               const newWall: WallSegment = {
                                 id: v4Fallback(),
                                 name: generateWallName(project.walls.length),
                                 points: currentPoints,
                                 wallType: 'concrete-sleeper',
                                 length,
-                                averageHeight: parseFloat(avgHeight.toFixed(2)),
+                                minHeight: parseFloat(minH.toFixed(2)),
                                 maxHeight: parseFloat(maxH.toFixed(2)),
                                 offsetFromDwelling: 0,
                                 offsetFromBoundary: 0,

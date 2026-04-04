@@ -27,7 +27,7 @@ export interface WallSegment {
   points: WallPoint[];
   wallType: WallType;
   length: number; // metres
-  averageHeight: number;
+  minHeight: number;
   maxHeight: number;
   offsetFromDwelling: number;
   offsetFromBoundary: number;

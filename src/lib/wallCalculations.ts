@@ -34,7 +34,7 @@ export function calculatePolylineLength(points: WallPoint[]): number {
  */
 export function estimateMaterials(wall: WallSegment): MaterialEstimate[] {
   const length = wall.length;
-  const height = wall.averageHeight || 1;
+  const height = wall.maxHeight || 1;
   const area = length * height;
 
   switch (wall.wallType) {
