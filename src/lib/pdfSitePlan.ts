@@ -55,7 +55,7 @@ async function fetchSatelliteImage(bbox: BBox, widthPx: number, heightPx: number
     const cLat = (bbox.minLat + bbox.maxLat) / 2;
     const latSpan = bbox.maxLat - bbox.minLat;
     const zoom = Math.min(Math.floor(Math.log2(180 / latSpan)) + 1, 21);
-    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${cLat},${cLng}&zoom=${zoom}&size=${widthPx}x${heightPx}&scale=2&maptype=satellite&style=feature:all|element:labels|visibility:off&key=${token}`;
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${cLat},${cLng}&zoom=${zoom}&size=${widthPx}x${heightPx}&scale=2&maptype=hybrid&style=feature:all|element:labels|visibility:off&key=${token}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const blob = await res.blob();
