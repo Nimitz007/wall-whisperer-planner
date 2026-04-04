@@ -120,6 +120,11 @@ const MapCanvas = ({
   const firstNodeElevationRef = useRef<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
   const [editHeightInput, setEditHeightInput] = useState('');
+  const [showTerrain, setShowTerrain] = useState(false);
+  const [terrainLoading, setTerrainLoading] = useState(false);
+  const [contourLines, setContourLines] = useState<{ level: number; segments: { lat1: number; lng1: number; lat2: number; lng2: number }[] }[]>([]);
+  const [contourElevRange, setContourElevRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
+  const terrainBoundsRef = useRef<string | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
