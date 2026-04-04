@@ -269,10 +269,10 @@ const PlannerSection = () => {
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
                           placeholder="email@example.com"
-                          className={`rounded-lg ${!isEmailValid && project.details.clientEmail.length > 0 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${triedNext && !isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
-                        {!isEmailValid && project.details.clientEmail.length > 0 && (
+                        {triedNext && !isEmailValid && (
                           <p className="text-xs text-destructive">Please enter a valid email address</p>
                         )}
                       </div>
