@@ -118,6 +118,8 @@ const MapCanvas = ({
   const [suggestedElevation, setSuggestedElevation] = useState<number | null>(null);
   const [elevationLoading, setElevationLoading] = useState(false);
   const firstNodeElevationRef = useRef<number | null>(null);
+  const prevNodeElevationRef = useRef<number | null>(null);
+  const prevNodeHeightRef = useRef<number>(0);
   const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
   const [editHeightInput, setEditHeightInput] = useState('');
   const [showTerrain, setShowTerrain] = useState(false);
@@ -157,6 +159,8 @@ const MapCanvas = ({
   useEffect(() => {
     if (isDrawing && currentPoints.length === 0) {
       firstNodeElevationRef.current = null;
+      prevNodeElevationRef.current = null;
+      prevNodeHeightRef.current = 0;
     }
   }, [isDrawing, currentPoints.length]);
 
@@ -236,14 +240,16 @@ const MapCanvas = ({
           // First node of the current wall: store as reference elevation
           if (nodeIndex === 0) {
             firstNodeElevationRef.current = elev;
+            prevNodeElevationRef.current = elev;
             setSuggestedElevation(null); // no height diff for first node
-          } else if (firstNodeElevationRef.current !== null) {
-            const diff = Math.abs(elev - firstNodeElevationRef.current);
-            const rounded = Math.round(diff * 10) / 10;
-            if (rounded > 0) {
-              setSuggestedElevation(rounded);
-              setHeightInput(String(rounded));
-            }
+          } else if (prevNodeElevationRef.current !== null) {
+            // If ground drops, wall needs to be taller to maintain level
+            // If ground rises, wall can be shorter
+            const elevDrop = prevNodeElevationRef.current - elev; // positive = ground dropped
+            const suggested = Math.max(0.2, Math.round((prevNodeHeightRef.current + elevDrop) * 10) / 10);
+            setSuggestedElevation(suggested);
+            setHeightInput(String(suggested));
+            prevNodeElevationRef.current = elev;
           }
         }
       });
@@ -257,6 +263,7 @@ const MapCanvas = ({
   const handleHeightSubmit = useCallback(() => {
     if (heightPrompt === null) return;
     const height = parseFloat(heightInput) || 0;
+    prevNodeHeightRef.current = height; // store for next node's suggestion
     onCurrentPointsChange((prev) => {
       const updated = [...prev];
       if (updated[heightPrompt.index]) {
