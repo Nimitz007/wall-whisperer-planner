@@ -17,14 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2 } from "lucide-react";
+import { MapPin, Pencil, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2, Trash2 } from "lucide-react";
 
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
 const STEPS = [
   { label: "Property", icon: MapPin },
   { label: "Draw", icon: Pencil },
-  { label: "Settings", icon: Settings },
   { label: "Context", icon: Compass },
   { label: "Summary", icon: BarChart3 },
   { label: "Export", icon: CreditCard },
@@ -89,11 +88,19 @@ const PlannerSection = () => {
     }));
   };
 
+  const deleteWall = (wallId: string) => {
+    const wall = project.walls.find(w => w.id === wallId);
+    if (!wall) return;
+    updateWalls(project.walls.filter((w) => w.id !== wallId));
+    if (activeWallId === wallId) setActiveWallId(null);
+    toast('Wall deleted', { description: `${wall.name} has been removed` });
+  };
+
   const setStep = (step: number) => {
     setProject((p) => ({ ...p, currentStep: step }));
   };
 
-  // Step validation: determine which steps are accessible
+  // Step validation
   const hasAddress = !!project.details.address;
   const hasWalls = project.walls.length > 0;
   const isFullName = /^\S+\s+\S+/.test(project.details.clientName.trim());
@@ -104,12 +111,11 @@ const PlannerSection = () => {
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
-      case 0: return true; // Property always accessible
-      case 1: return hasAddress && hasContactInfo; // Draw requires address + contact
-      case 2: return hasAddress && hasContactInfo && hasWalls; // Settings requires walls
-      case 3: return hasAddress && hasContactInfo && hasWalls; // Context requires walls
-      case 4: return hasAddress && hasContactInfo && hasWalls; // Summary requires walls
-      case 5: return hasAddress && hasContactInfo && hasWalls; // Export requires walls
+      case 0: return true;
+      case 1: return hasAddress && hasContactInfo;
+      case 2: return hasAddress && hasContactInfo && hasWalls;
+      case 3: return hasAddress && hasContactInfo && hasWalls;
+      case 4: return hasAddress && hasContactInfo && hasWalls;
       default: return false;
     }
   };
@@ -118,10 +124,9 @@ const PlannerSection = () => {
     switch (step) {
       case 0: return hasAddress && hasContactInfo;
       case 1: return hasWalls;
-      case 2: return hasWalls && project.walls.every(w => w.averageHeight > 0);
-      case 3: return hasWalls && (!!project.siteContext.distanceToHouse || !!project.siteContext.distanceToBoundary || !!project.siteContext.slopeNotes); // Context complete when has content
-      case 4: return hasWalls;
-      case 5: return project.isPaid;
+      case 2: return hasWalls && (!!project.siteContext.distanceToHouse || !!project.siteContext.distanceToBoundary || !!project.siteContext.slopeNotes);
+      case 3: return hasWalls;
+      case 4: return project.isPaid;
       default: return false;
     }
   };
@@ -149,8 +154,6 @@ const PlannerSection = () => {
     const prev = project.currentStep - 1;
     if (prev >= 0) setStep(prev);
   };
-
-  // Email validation (defined above with other validations)
 
   return (
     <section id="planner" className="bg-background pb-20">
@@ -316,147 +319,129 @@ const PlannerSection = () => {
                   </div>
                 )}
 
-                 {project.currentStep === 1 && (
-                   <div className="space-y-4">
-                     <h3 className="font-display text-lg font-semibold text-foreground">Draw Walls</h3>
-                     <p className="text-sm text-muted-foreground">
-                       Click <strong>"Start Drawing"</strong> below, then click points on the map to define the wall path.
-                     </p>
-
-                     {/* Drawing controls */}
-                     <div className="space-y-2">
-                       {!isDrawing ? (
-                         <Button onClick={() => setIsDrawing(true)} className="w-full gap-2">
-                           <Pencil className="h-4 w-4" />
-                           Start Drawing
-                         </Button>
-                       ) : (
-                         <div className="space-y-2">
-                           <Button
-                             onClick={() => {
-                               if (currentPoints.length < 2) {
-                                 setCurrentPoints([]);
-                                 setIsDrawing(false);
-                                 return;
-                               }
-                               const length = calculatePolylineLength(currentPoints);
-                               const newWall: WallSegment = {
-                                 id: v4Fallback(),
-                                 name: generateWallName(project.walls.length),
-                                 points: currentPoints,
-                                 wallType: 'concrete-sleeper',
-                                 length,
-                                 averageHeight: 1.0,
-                                 maxHeight: 1.2,
-                                 offsetFromDwelling: 0,
-                                 offsetFromBoundary: 0,
-                                 hasSurcharge: false,
-                                 hasFenceAbove: false,
-                                 hasDrainageRequired: true,
-                                 notes: '',
-                                 materialAssumptions: '',
-                               };
-                               updateWalls([...project.walls, newWall]);
-                               setActiveWallId(newWall.id);
-                               setCurrentPoints([]);
-                               setIsDrawing(false);
-                               toast.success(`${newWall.name} added`, { description: `${length.toFixed(1)}m retaining wall` });
-                             }}
-                             className="w-full gap-2"
-                             disabled={currentPoints.length < 2}
-                           >
-                             Finish Wall {currentPoints.length >= 2 && `(${calculatePolylineLength(currentPoints).toFixed(1)}m)`}
-                           </Button>
-                           <div className="flex gap-2">
-                             <Button
-                               onClick={() => setCurrentPoints((prev) => prev.slice(0, -1))}
-                               variant="outline"
-                               size="sm"
-                               className="flex-1 gap-1.5"
-                               disabled={currentPoints.length === 0}
-                             >
-                               <Undo2 className="h-3.5 w-3.5" /> Undo Point
-                             </Button>
-                             <Button
-                               onClick={() => { setCurrentPoints([]); setIsDrawing(false); }}
-                               variant="outline"
-                               size="sm"
-                               className="flex-1"
-                             >
-                               Cancel
-                             </Button>
-                           </div>
-                           <p className="text-xs text-muted-foreground text-center">
-                             Click on the map to place wall points
-                           </p>
-                         </div>
-                       )}
-                     </div>
-
-                     {project.walls.length > 0 && (
-                       <div className="space-y-2">
-                         <Separator />
-                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Drawn Walls</p>
-                         {project.walls.map((wall) => (
-                           <button
-                             key={wall.id}
-                             onClick={() => setActiveWallId(wall.id)}
-                             className={`w-full rounded-lg px-4 py-3 text-left text-sm transition-colors ${
-                               activeWallId === wall.id
-                                 ? "bg-primary text-primary-foreground"
-                                 : "bg-muted text-foreground hover:bg-accent"
-                             }`}
-                           >
-                             <span className="font-medium">{wall.name}</span>
-                             <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
-                           </button>
-                         ))}
-                       </div>
-                     )}
-                   </div>
-                )}
-
-                {project.currentStep === 2 && (
+                {project.currentStep === 1 && (
                   <div className="space-y-4">
-                    <h3 className="font-display text-lg font-semibold text-foreground">Wall Settings</h3>
-                    {activeWall ? (
-                      <WallEditorPanel wall={activeWall} onChange={updateWall} />
-                    ) : project.walls.length > 0 ? (
-                      <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          Select a wall to edit its settings.
-                        </p>
-                        <div className="space-y-2">
-                          {project.walls.map((wall) => (
-                            <button
-                              key={wall.id}
-                              onClick={() => setActiveWallId(wall.id)}
-                              className="w-full rounded-lg bg-muted px-4 py-3 text-left text-sm text-foreground transition-colors hover:bg-accent"
-                            >
-                              <span className="font-medium">{wall.name}</span>
-                              <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-dashed border-border bg-muted/50 p-6 text-center">
-                        <Pencil className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                        <p className="text-sm text-muted-foreground">No walls drawn yet</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3"
-                          onClick={() => setStep(1)}
-                        >
-                          Go to Draw
+                    <h3 className="font-display text-lg font-semibold text-foreground">Draw Walls</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Click <strong>"Start Drawing"</strong> below, then click points on the map. You'll be prompted for the height at each point.
+                    </p>
+
+                    {/* Drawing controls */}
+                    <div className="space-y-2">
+                      {!isDrawing ? (
+                        <Button onClick={() => setIsDrawing(true)} className="w-full gap-2">
+                          <Pencil className="h-4 w-4" />
+                          Start Drawing
                         </Button>
+                      ) : (
+                        <div className="space-y-2">
+                          <Button
+                            onClick={() => {
+                              if (currentPoints.length < 2) {
+                                setCurrentPoints([]);
+                                setIsDrawing(false);
+                                return;
+                              }
+                              const length = calculatePolylineLength(currentPoints);
+                              const heights = currentPoints.map(p => p.height || 0).filter(h => h > 0);
+                              const avgHeight = heights.length > 0 ? heights.reduce((a, b) => a + b, 0) / heights.length : 1.0;
+                              const maxH = heights.length > 0 ? Math.max(...heights) : 1.2;
+                              const newWall: WallSegment = {
+                                id: v4Fallback(),
+                                name: generateWallName(project.walls.length),
+                                points: currentPoints,
+                                wallType: 'concrete-sleeper',
+                                length,
+                                averageHeight: parseFloat(avgHeight.toFixed(2)),
+                                maxHeight: parseFloat(maxH.toFixed(2)),
+                                offsetFromDwelling: 0,
+                                offsetFromBoundary: 0,
+                                hasSurcharge: false,
+                                hasFenceAbove: false,
+                                hasDrainageRequired: true,
+                                notes: '',
+                                materialAssumptions: '',
+                              };
+                              updateWalls([...project.walls, newWall]);
+                              setActiveWallId(newWall.id);
+                              setCurrentPoints([]);
+                              setIsDrawing(false);
+                              toast.success(`${newWall.name} added`, { description: `${length.toFixed(1)}m retaining wall` });
+                            }}
+                            className="w-full gap-2"
+                            disabled={currentPoints.length < 2}
+                          >
+                            Finish Wall {currentPoints.length >= 2 && `(${calculatePolylineLength(currentPoints).toFixed(1)}m)`}
+                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => setCurrentPoints((prev) => prev.slice(0, -1))}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 gap-1.5"
+                              disabled={currentPoints.length === 0}
+                            >
+                              <Undo2 className="h-3.5 w-3.5" /> Undo Point
+                            </Button>
+                            <Button
+                              onClick={() => { setCurrentPoints([]); setIsDrawing(false); }}
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground text-center">
+                            Click on the map to place wall points
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Wall list with inline editing */}
+                    {project.walls.length > 0 && (
+                      <div className="space-y-2">
+                        <Separator />
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Drawn Walls</p>
+                        {project.walls.map((wall) => (
+                          <div key={wall.id} className="space-y-0">
+                            <div
+                              onClick={() => setActiveWallId(activeWallId === wall.id ? null : wall.id)}
+                              className={`flex cursor-pointer items-center justify-between rounded-lg px-4 py-3 text-sm transition-colors ${
+                                activeWallId === wall.id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-foreground hover:bg-accent"
+                              }`}
+                            >
+                              <div>
+                                <span className="font-medium">{wall.name}</span>
+                                <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
+                                {wall.averageHeight > 0 && (
+                                  <span className="ml-2 opacity-70">· avg {wall.averageHeight}m</span>
+                                )}
+                              </div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteWall(wall.id); }}
+                                className="opacity-60 hover:opacity-100"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            {/* Inline wall editor */}
+                            {activeWallId === wall.id && (
+                              <div className="mt-2 rounded-lg border border-border bg-card p-4">
+                                <WallEditorPanel wall={wall} onChange={updateWall} />
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
                 )}
 
-                {project.currentStep === 3 && (
+                {project.currentStep === 2 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Site Context</h3>
                     <p className="text-xs text-muted-foreground">
@@ -522,14 +507,14 @@ const PlannerSection = () => {
                   </div>
                 )}
 
-                {project.currentStep === 4 && (
+                {project.currentStep === 3 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Summary</h3>
                     <ProjectSummary project={project} />
                   </div>
                 )}
 
-                {project.currentStep === 5 && (
+                {project.currentStep === 4 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Export</h3>
 
