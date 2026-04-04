@@ -605,9 +605,9 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     const planArea: DrawArea = { x: 25, y: 30, w: w * 0.55, h: h - 78 };
 
     // Satellite underlay
-    if (mapboxToken) {
+    if (googleMapsApiKey) {
       try {
-        const imgData = await fetchSatelliteImage(bbox, 1280, 1024, mapboxToken);
+        const imgData = await fetchSatelliteImage(bbox, 640, 512, googleMapsApiKey);
         if (imgData) {
           doc.addImage(imgData, 'PNG', planArea.x, planArea.y, planArea.w, planArea.h);
           // Semi-transparent overlay for readability
