@@ -205,7 +205,7 @@ const MapCanvas = ({
       {/* Map style toggle */}
       <div className="absolute left-3 top-3 flex flex-col gap-2 sm:left-4 sm:top-4">
         <div className="flex overflow-hidden rounded-lg border border-border bg-card shadow-card">
-          {(['roadmap', 'satellite', 'hybrid'] as MapTypeId[]).map((t) => (
+          {(['satellite', 'hybrid'] as MapTypeId[]).map((t) => (
             <button
               key={t}
               onClick={() => setMapType(t)}
@@ -213,7 +213,7 @@ const MapCanvas = ({
                 mapType === t ? 'bg-primary text-primary-foreground' : 'text-foreground hover:bg-accent'
               }`}
             >
-              {t === 'roadmap' ? 'Standard' : t === 'satellite' ? 'Satellite' : 'Hybrid'}
+              {t === 'satellite' ? 'Satellite' : 'Hybrid'}
             </button>
           ))}
         </div>
