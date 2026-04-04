@@ -7,7 +7,7 @@ import WallEditorPanel from "./WallEditorPanel";
 import ProjectSummary from "./ProjectSummary";
 import PaymentGate from "./PaymentGate";
 import ExportGenerator from "./ExportGenerator";
-import { ProjectState, WallSegment, WallPoint, SiteContext } from "@/lib/types";
+import { ProjectState, WallSegment, WallPoint } from "@/lib/types";
 import { calculatePolylineLength, generateWallName } from "@/lib/wallCalculations";
 import { v4Fallback } from "@/lib/idUtils";
 import { Input } from "@/components/ui/input";
@@ -17,14 +17,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { MapPin, Pencil, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2, Trash2 } from "lucide-react";
+import { MapPin, Pencil, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2, Trash2 } from "lucide-react";
 
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
 const STEPS = [
   { label: "Property", icon: MapPin },
   { label: "Draw", icon: Pencil },
-  { label: "Context", icon: Compass },
   { label: "Summary", icon: BarChart3 },
   { label: "Export", icon: CreditCard },
 ];
@@ -73,9 +72,6 @@ const PlannerSection = () => {
     setProject((p) => ({ ...p, details: { ...p.details, ...partial } }));
   };
 
-  const updateSiteContext = (partial: Partial<SiteContext>) => {
-    setProject((p) => ({ ...p, siteContext: { ...p.siteContext, ...partial } }));
-  };
 
   const updateWalls = (walls: WallSegment[]) => {
     setProject((p) => ({ ...p, walls }));
@@ -115,7 +111,6 @@ const PlannerSection = () => {
       case 1: return hasAddress && hasContactInfo;
       case 2: return hasAddress && hasContactInfo && hasWalls;
       case 3: return hasAddress && hasContactInfo && hasWalls;
-      case 4: return hasAddress && hasContactInfo && hasWalls;
       default: return false;
     }
   };
@@ -124,9 +119,8 @@ const PlannerSection = () => {
     switch (step) {
       case 0: return hasAddress && hasContactInfo;
       case 1: return hasWalls;
-      case 2: return hasWalls && (!!project.siteContext.distanceToHouse || !!project.siteContext.distanceToBoundary || !!project.siteContext.slopeNotes);
-      case 3: return hasWalls;
-      case 4: return project.isPaid;
+      case 2: return hasWalls;
+      case 3: return project.isPaid;
       default: return false;
     }
   };
@@ -441,80 +435,15 @@ const PlannerSection = () => {
                   </div>
                 )}
 
+
                 {project.currentStep === 2 && (
-                  <div className="space-y-4">
-                    <h3 className="font-display text-lg font-semibold text-foreground">Site Context</h3>
-                    <p className="text-xs text-muted-foreground">
-                      All measurements are user-confirmed approximations. Concept only.
-                    </p>
-
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Approximate distance to house</Label>
-                        <Input
-                          value={project.siteContext.distanceToHouse}
-                          onChange={(e) => updateSiteContext({ distanceToHouse: e.target.value })}
-                          placeholder="e.g. 3.5m"
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Approximate distance to boundary</Label>
-                        <Input
-                          value={project.siteContext.distanceToBoundary}
-                          onChange={(e) => updateSiteContext({ distanceToBoundary: e.target.value })}
-                          placeholder="e.g. 1.2m"
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Slope notes</Label>
-                        <Textarea
-                          value={project.siteContext.slopeNotes}
-                          onChange={(e) => updateSiteContext({ slopeNotes: e.target.value })}
-                          placeholder="Describe the site slope..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Access notes</Label>
-                        <Textarea
-                          value={project.siteContext.accessNotes}
-                          onChange={(e) => updateSiteContext({ accessNotes: e.target.value })}
-                          placeholder="Vehicle access, restrictions..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Adjoining structures</Label>
-                        <Textarea
-                          value={project.siteContext.adjoiningStructures}
-                          onChange={(e) => updateSiteContext({ adjoiningStructures: e.target.value })}
-                          placeholder="Fences, sheds, pools..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-sm">Additional comments</Label>
-                        <Textarea
-                          value={project.siteContext.comments}
-                          onChange={(e) => updateSiteContext({ comments: e.target.value })}
-                          placeholder="Anything else relevant..."
-                          className="rounded-lg"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {project.currentStep === 3 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Summary</h3>
                     <ProjectSummary project={project} />
                   </div>
                 )}
 
-                {project.currentStep === 4 && (
+                {project.currentStep === 3 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Export</h3>
 
