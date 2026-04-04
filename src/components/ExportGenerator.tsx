@@ -210,12 +210,3 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
 };
 
 export default ExportGenerator;
-          <span className="text-sm font-semibold">{loadingCSV ? 'Generating...' : 'Wall Schedule (CSV)'}</span>
-        </div>
-        {!loadingCSV && <Download className="h-4 w-4" />}
-      </Button>
-    </div>
-  );
-};
-
-export default ExportGenerator;
