@@ -68,7 +68,7 @@ const MapCanvas = ({
     (e: google.maps.MapMouseEvent) => {
       if (!isDrawing || !e.latLng) return;
       const point: WallPoint = { lng: e.latLng.lng(), lat: e.latLng.lat() };
-      setCurrentPoints((prev) => [...prev, point]);
+      onCurrentPointsChange((prev) => [...prev, point]);
     },
     [isDrawing]
   );
