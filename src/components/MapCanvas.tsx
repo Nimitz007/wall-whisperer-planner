@@ -240,14 +240,16 @@ const MapCanvas = ({
           // First node of the current wall: store as reference elevation
           if (nodeIndex === 0) {
             firstNodeElevationRef.current = elev;
+            prevNodeElevationRef.current = elev;
             setSuggestedElevation(null); // no height diff for first node
-          } else if (firstNodeElevationRef.current !== null) {
-            const diff = Math.abs(elev - firstNodeElevationRef.current);
-            const rounded = Math.round(diff * 10) / 10;
-            if (rounded > 0) {
-              setSuggestedElevation(rounded);
-              setHeightInput(String(rounded));
-            }
+          } else if (prevNodeElevationRef.current !== null) {
+            // If ground drops, wall needs to be taller to maintain level
+            // If ground rises, wall can be shorter
+            const elevDrop = prevNodeElevationRef.current - elev; // positive = ground dropped
+            const suggested = Math.max(0.2, Math.round((prevNodeHeightRef.current + elevDrop) * 10) / 10);
+            setSuggestedElevation(suggested);
+            setHeightInput(String(suggested));
+            prevNodeElevationRef.current = elev;
           }
         }
       });
