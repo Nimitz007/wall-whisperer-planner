@@ -38,6 +38,20 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
     try {
       const doc = new jsPDF('portrait', 'mm', 'a4');
       const w = doc.internal.pageSize.getWidth();
+      const h = doc.internal.pageSize.getHeight();
+
+      // Watermark helper
+      const addWatermark = () => {
+        doc.saveGraphicsState();
+        doc.setGState(new (doc as any).GState({ opacity: 0.06 }));
+        doc.setFontSize(54);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(0, 0, 0);
+        doc.text('SIMPLE ENGINEERS', w / 2, h / 2, { align: 'center', angle: 35 });
+        doc.restoreGraphicsState();
+      };
+
+      addWatermark();
 
       // Header
       doc.setFillColor(45, 55, 72);
