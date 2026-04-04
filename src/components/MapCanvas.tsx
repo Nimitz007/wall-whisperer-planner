@@ -280,8 +280,8 @@ const MapCanvas = ({
     );
   }
 
-  const googleCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
-  const defaultZoom = center ? 20 : 4;
+  const initialCenter = useRef(center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 });
+  const initialZoom = useRef(center ? 20 : 4);
 
   return (
     <div className="relative">
