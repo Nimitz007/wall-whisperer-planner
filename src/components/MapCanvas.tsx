@@ -114,6 +114,9 @@ const MapCanvas = ({
   const [snapTarget, setSnapTarget] = useState<WallPoint | null>(null);
   const [heightPrompt, setHeightPrompt] = useState<{ point: WallPoint; index: number } | null>(null);
   const [heightInput, setHeightInput] = useState('');
+  const [suggestedElevation, setSuggestedElevation] = useState<number | null>(null);
+  const [elevationLoading, setElevationLoading] = useState(false);
+  const firstNodeElevationRef = useRef<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
   const [editHeightInput, setEditHeightInput] = useState('');
 
