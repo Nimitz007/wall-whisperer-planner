@@ -263,6 +263,7 @@ const MapCanvas = ({
   const handleHeightSubmit = useCallback(() => {
     if (heightPrompt === null) return;
     const height = parseFloat(heightInput) || 0;
+    prevNodeHeightRef.current = height; // store for next node's suggestion
     onCurrentPointsChange((prev) => {
       const updated = [...prev];
       if (updated[heightPrompt.index]) {
