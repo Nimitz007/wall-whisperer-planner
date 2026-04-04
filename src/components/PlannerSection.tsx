@@ -443,7 +443,7 @@ const PlannerSection = () => {
                   </div>
                 )}
 
-                {project.currentStep === 4 && (
+                {project.currentStep === 3 && (
                   <div className="space-y-4">
                     <h3 className="font-display text-lg font-semibold text-foreground">Export</h3>
 
