@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import { ProjectState, WALL_TYPE_LABELS, WallSegment } from '@/lib/types';
+import { ProjectState, WallSegment } from '@/lib/types';
 import { calculateDistance } from '@/lib/wallCalculations';
 import { BrandingConfig } from '@/lib/branding';
 
