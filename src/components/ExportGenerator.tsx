@@ -109,6 +109,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
 
       // Disclaimer page
       doc.addPage();
+      addWatermark();
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('IMPORTANT DISCLAIMER', 15, 30);
