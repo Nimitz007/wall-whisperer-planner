@@ -107,7 +107,7 @@ const PlannerSection = () => {
 
   const isStepComplete = (step: number): boolean => {
     switch (step) {
-      case 0: return hasAddress;
+      case 0: return hasAddress && hasContactInfo;
       case 1: return hasWalls;
       case 2: return hasWalls && project.walls.every(w => w.averageHeight > 0);
       case 3: return true; // Context is optional
