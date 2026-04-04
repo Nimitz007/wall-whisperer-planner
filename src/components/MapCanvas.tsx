@@ -616,7 +616,30 @@ const MapCanvas = ({
               autoFocus
               className="rounded-lg"
             />
-            <p className="text-xs text-muted-foreground">Enter the retaining wall height at this specific point</p>
+            {elevationLoading && (
+              <p className="text-xs text-muted-foreground animate-pulse">Fetching terrain elevation…</p>
+            )}
+            {suggestedElevation !== null && !elevationLoading && (
+              <div className="flex items-center gap-2 rounded-md bg-accent/50 px-3 py-1.5">
+                <span className="text-xs text-muted-foreground">
+                  Suggested from terrain: <strong className="text-foreground">{suggestedElevation}m</strong>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-2 text-[10px]"
+                  onClick={() => setHeightInput(String(suggestedElevation))}
+                >
+                  Use
+                </Button>
+              </div>
+            )}
+            {heightPrompt && heightPrompt.index === 0 && !elevationLoading && (
+              <p className="text-xs text-muted-foreground">First node — this sets the reference elevation for height calculations</p>
+            )}
+            {heightPrompt && heightPrompt.index > 0 && suggestedElevation === null && !elevationLoading && (
+              <p className="text-xs text-muted-foreground">Enter the retaining wall height at this specific point</p>
+            )}
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" onClick={handleHeightSkip}>Skip</Button>
