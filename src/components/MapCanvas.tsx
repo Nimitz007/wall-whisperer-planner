@@ -310,6 +310,50 @@ const MapCanvas = ({
   const wallAngles = useMemo(() => findWallAngles(walls), [walls]);
   const endpoints = useMemo(() => (isDrawing ? getEndpoints(walls) : []), [isDrawing, walls]);
 
+  // Fetch terrain contours when toggled on
+  const fetchTerrainContours = useCallback(() => {
+    if (!mapRef.current) return;
+    const bounds = mapRef.current.getBounds();
+    if (!bounds) return;
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+    const boundsKey = `${ne.lat().toFixed(6)},${ne.lng().toFixed(6)},${sw.lat().toFixed(6)},${sw.lng().toFixed(6)}`;
+    if (terrainBoundsRef.current === boundsKey) return;
+    terrainBoundsRef.current = boundsKey;
+
+    setTerrainLoading(true);
+    fetchElevationGrid({
+      north: ne.lat(),
+      south: sw.lat(),
+      east: ne.lng(),
+      west: sw.lng(),
+    }, 20).then((grid) => {
+      if (grid.length === 0) { setTerrainLoading(false); return; }
+      const elevs = grid.map((p) => p.elevation);
+      const minE = Math.min(...elevs);
+      const maxE = Math.max(...elevs);
+      setContourElevRange({ min: minE, max: maxE });
+      const range = maxE - minE;
+      const interval = range > 10 ? 2 : range > 5 ? 1 : 0.5;
+      const contours = generateContourLines(grid, 20, interval);
+      setContourLines(contours);
+      setTerrainLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (showTerrain) {
+      fetchTerrainContours();
+    } else {
+      setContourLines([]);
+      terrainBoundsRef.current = null;
+    }
+  }, [showTerrain, fetchTerrainContours]);
+
+  const handleMapIdle = useCallback(() => {
+    if (showTerrain) fetchTerrainContours();
+  }, [showTerrain, fetchTerrainContours]);
+
   const initialCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
   const initialZoom = center ? 20 : 4;
 
