@@ -94,10 +94,11 @@ const PlannerSection = () => {
   // Step validation: determine which steps are accessible
   const hasAddress = !!project.details.address;
   const hasWalls = project.walls.length > 0;
+  const isFullName = /^\S+\s+\S+/.test(project.details.clientName.trim());
   const hasContactInfo =
-    project.details.clientName.trim().length > 0 &&
+    isFullName &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail) &&
-    project.details.clientPhone.trim().length >= 8;
+    project.details.clientPhone.replace(/\D/g, '').length >= 10;
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
