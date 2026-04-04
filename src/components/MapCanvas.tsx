@@ -556,6 +556,38 @@ const MapCanvas = ({
                     </div>
                   </OverlayViewF>
                 )}
+                {/* Spot elevation labels at each node */}
+                {wall.points.map((p, i) => {
+                  const elevKey = `${wall.id}-${i}`;
+                  const elev = nodeElevations[elevKey];
+                  if (elev === undefined) return null;
+                  return (
+                    <OverlayViewF
+                      key={`elev-label-${wall.id}-${i}`}
+                      position={{ lat: p.lat, lng: p.lng }}
+                      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+                    >
+                      <div
+                        style={{
+                          transform: 'translate(-50%, 10px)',
+                          padding: '1px 4px',
+                          fontSize: '9px',
+                          fontWeight: 600,
+                          color: '#FFD700',
+                          background: 'rgba(0,0,0,0.6)',
+                          borderRadius: '2px',
+                          whiteSpace: 'nowrap',
+                          pointerEvents: 'none',
+                          lineHeight: '12px',
+                          borderLeft: '2px solid #FFD700',
+                        }}
+                      >
+                        RL {elev.toFixed(2)}m
+                        {p.height ? ` | H ${p.height}m` : ''}
+                      </div>
+                    </OverlayViewF>
+                  );
+                })}
               </div>
             );
           })}
