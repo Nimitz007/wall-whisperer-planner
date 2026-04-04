@@ -71,7 +71,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
   // Fly to center when it changes
   useEffect(() => {
     if (mapRef.current && center) {
-      mapRef.current.flyTo({ center, zoom: 18, duration: 2000 });
+      mapRef.current.flyTo({ center, zoom: 20, duration: 2000 });
     }
   }, [center]);
 
