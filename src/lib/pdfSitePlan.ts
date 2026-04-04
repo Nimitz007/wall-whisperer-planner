@@ -736,9 +736,10 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     doc.addPage([420, 297], 'landscape');
     drawBorder(doc);
 
-    // Note boxes towards the right
-    const noteX = drawingAreaRight - 155;
-    drawNoteBoxes(doc, noteX, BORDER_INNER + 10, 150);
+    // Note boxes - right-aligned near title block
+    const tbX2 = A3_W - BORDER_INNER - TB_WIDTH;
+    const noteX = tbX2 - 165;
+    drawNoteBoxes(doc, noteX, BORDER_INNER + 10, tbX2 - noteX - 5);
 
     // Centre the elevation vertically
     const elevBaseY = BORDER_INNER + (A3_H - BORDER_INNER * 2) * 0.6;
