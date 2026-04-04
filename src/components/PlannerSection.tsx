@@ -98,7 +98,7 @@ const PlannerSection = () => {
   const hasContactInfo =
     isFullName &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail) &&
-    project.details.clientPhone.replace(/\D/g, '').length >= 10;
+    project.details.clientPhone.replace(/\D/g, '').length === 10;
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
