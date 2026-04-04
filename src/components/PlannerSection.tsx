@@ -400,31 +400,29 @@ const PlannerSection = () => {
                         <Separator />
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Drawn Walls</p>
                         {project.walls.map((wall) => (
-                          <div key={wall.id} className="space-y-0">
+                          <div key={wall.id} className="rounded-lg border border-border overflow-hidden">
                             <div
                               onClick={() => setActiveWallId(activeWallId === wall.id ? null : wall.id)}
-                              className={`flex cursor-pointer items-center justify-between rounded-lg px-4 py-3 text-sm transition-colors ${
+                              className={`flex cursor-pointer items-center gap-3 px-3 py-2.5 text-sm transition-colors ${
                                 activeWallId === wall.id
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-muted text-foreground hover:bg-accent"
+                                  ? "bg-primary/10 text-foreground"
+                                  : "bg-card text-foreground hover:bg-muted"
                               }`}
                             >
-                              <div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); deleteWall(wall.id); }}
+                                className="text-destructive/60 hover:text-destructive transition-colors shrink-0"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                              <div className="flex-1 min-w-0">
                                 <span className="font-medium">{wall.name}</span>
-                                <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
+                                <span className="ml-2 text-muted-foreground text-xs">{wall.length.toFixed(1)}m</span>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); deleteWall(wall.id); }}
-                                  className="opacity-60 hover:opacity-100"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                                <ChevronRight className={`h-4 w-4 opacity-60 transition-transform ${activeWallId === wall.id ? 'rotate-90' : ''}`} />
-                              </div>
+                              <ChevronRight className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${activeWallId === wall.id ? 'rotate-90' : ''}`} />
                             </div>
                             {activeWallId === wall.id && (
-                              <div className="mt-2 rounded-lg border border-border bg-card p-4">
+                              <div className="border-t border-border bg-card p-3">
                                 <WallEditorPanel wall={wall} onChange={updateWall} />
                               </div>
                             )}
