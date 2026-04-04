@@ -111,7 +111,6 @@ const PlannerSection = () => {
       case 1: return hasAddress && hasContactInfo;
       case 2: return hasAddress && hasContactInfo && hasWalls;
       case 3: return hasAddress && hasContactInfo && hasWalls;
-      case 4: return hasAddress && hasContactInfo && hasWalls;
       default: return false;
     }
   };
@@ -120,9 +119,8 @@ const PlannerSection = () => {
     switch (step) {
       case 0: return hasAddress && hasContactInfo;
       case 1: return hasWalls;
-      case 2: return hasWalls && (!!project.siteContext.distanceToHouse || !!project.siteContext.distanceToBoundary || !!project.siteContext.slopeNotes);
-      case 3: return hasWalls;
-      case 4: return project.isPaid;
+      case 2: return hasWalls;
+      case 3: return project.isPaid;
       default: return false;
     }
   };
