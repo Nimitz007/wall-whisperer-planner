@@ -262,7 +262,7 @@ const PlannerSection = () => {
                           required
                         />
                         {triedNext && !isFullName && (
-                          <p className="text-xs text-destructive mt-1">Please enter first and last name</p>
+                          <p className="text-xs text-destructive mt-1">Enter a valid full name</p>
                         )}
                       </div>
                       <div>
@@ -276,7 +276,7 @@ const PlannerSection = () => {
                           required
                         />
                         {triedNext && !isEmailValid && (
-                          <p className="text-xs text-destructive mt-1">Please enter a valid email address</p>
+                          <p className="text-xs text-destructive mt-1">Enter a valid email</p>
                         )}
                       </div>
                       <div>
@@ -286,12 +286,12 @@ const PlannerSection = () => {
                           type="tel"
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
-                          className={triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive ring-1 ring-destructive" : ""}
+                          className={triedNext && !isPhoneValid ? "border-destructive ring-1 ring-destructive" : ""}
                           required
-                          maxLength={14}
+                          maxLength={15}
                         />
-                        {triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
-                          <p className="text-xs text-destructive mt-1">Phone must be exactly 10 digits</p>
+                        {triedNext && !isPhoneValid && (
+                          <p className="text-xs text-destructive mt-1">Enter a valid phone number</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 pt-1">
