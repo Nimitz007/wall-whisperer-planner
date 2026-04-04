@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
-type MapTypeId = 'roadmap' | 'satellite' | 'hybrid';
+type MapTypeId = 'satellite' | 'hybrid';
 
 const containerStyle = { width: '100%', height: '100%' };
 
