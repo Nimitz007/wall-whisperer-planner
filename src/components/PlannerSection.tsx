@@ -147,7 +147,7 @@ const PlannerSection = () => {
   };
 
   // Email validation
-  const isEmailValid = !project.details.clientEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
 
   return (
     <section id="planner" className="bg-background pb-20">
