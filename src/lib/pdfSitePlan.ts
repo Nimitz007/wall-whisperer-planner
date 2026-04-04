@@ -55,7 +55,7 @@ async function fetchSatelliteImage(bbox: BBox, widthPx: number, heightPx: number
     const cLat = (bbox.minLat + bbox.maxLat) / 2;
     const latSpan = bbox.maxLat - bbox.minLat;
     const zoom = Math.min(Math.floor(Math.log2(180 / latSpan)) + 1, 21);
-    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${cLat},${cLng}&zoom=${zoom}&size=${widthPx}x${heightPx}&scale=2&maptype=satellite&style=feature:all|element:labels|visibility:off&key=${token}`;
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${cLat},${cLng}&zoom=${zoom}&size=${widthPx}x${heightPx}&scale=2&maptype=hybrid&style=feature:all|element:labels|visibility:off&key=${token}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const blob = await res.blob();
@@ -85,8 +85,6 @@ async function loadLogoDataUrl(): Promise<string | null> {
 function drawBorder(doc: jsPDF) {
   doc.setDrawColor(...C.border);
   doc.setLineWidth(0.5);
-  doc.rect(BORDER_OUTER, BORDER_OUTER, A3_W - BORDER_OUTER * 2, A3_H - BORDER_OUTER * 2);
-  doc.setLineWidth(0.2);
   doc.rect(BORDER_INNER, BORDER_INNER, A3_W - BORDER_INNER * 2, A3_H - BORDER_INNER * 2);
 }
 
@@ -489,20 +487,19 @@ function drawSteppedElevation(
     doc.line(gx, groundY, gx - 1.2, groundY + 1.5);
   }
 
-  // ── Stepped wall profile ──
-  // Build segments with heights at each node
-  const segHeights: { startX: number; endX: number; height: number; }[] = [];
+  // ── Stepped wall profile using actual node heights ──
+  // Each node has its own height; the wall steps between them
+  // Build profile: for each segment, use the height at the START node (step happens at the next node)
+  const segHeights: { startX: number; endX: number; height: number; segLen: number; }[] = [];
   let cumLen = 0;
   for (let i = 0; i < wall.points.length - 1; i++) {
     const segLen = calculateDistance(wall.points[i], wall.points[i + 1]);
-    const h1 = wall.points[i].height ?? 0;
-    const h2 = wall.points[i + 1].height ?? 0;
-    // Use the average of the two node heights for this bay
-    const bayH = (h1 + h2) / 2;
+    const h = wall.points[i].height ?? 0;
     segHeights.push({
       startX: ox + cumLen * hScale,
       endX: ox + (cumLen + segLen) * hScale,
-      height: bayH > 0 ? bayH : (wall.maxHeight || 1),
+      height: h > 0 ? h : (wall.maxHeight || 1),
+      segLen,
     });
     cumLen += segLen;
   }
@@ -511,40 +508,49 @@ function drawSteppedElevation(
   doc.setLineWidth(0.4); doc.setDrawColor(...C.black);
 
   if (segHeights.length === 0) {
-    // Fallback: simple rectangle
-    const maxH = wall.maxHeight || 1;
-    const wH = maxH * vScale;
+    const maxH2 = wall.maxHeight || 1;
+    const wH = maxH2 * vScale;
     doc.rect(ox, groundY - wH, wW, wH);
   } else {
-    // Draw each bay as a rectangle at its own height
-    segHeights.forEach((seg, i) => {
-      const bayW = seg.endX - seg.startX;
+    // Draw outline as a stepped profile path
+    // Bottom line (ground)
+    doc.setLineWidth(0.4);
+    doc.line(ox, groundY, ox + wW, groundY);
+
+    // Left edge up
+    const firstH = segHeights[0].height * vScale;
+    doc.line(ox, groundY, ox, groundY - firstH);
+
+    // Top profile with steps
+    for (let i = 0; i < segHeights.length; i++) {
+      const seg = segHeights[i];
       const bayH = seg.height * vScale;
+      // Horizontal top of this bay
+      doc.line(seg.startX, groundY - bayH, seg.endX, groundY - bayH);
 
-      // Draw bay outline
-      doc.setLineWidth(0.4);
-      doc.rect(seg.startX, groundY - bayH, bayW, bayH);
-
-      // Step transition lines between bays
-      if (i > 0) {
-        const prevH = segHeights[i - 1].height * vScale;
-        if (Math.abs(prevH - bayH) > 0.1) {
-          // Horizontal step line at the shorter height
-          doc.setLineWidth(0.3);
-          const minH = Math.min(prevH, bayH);
-          doc.line(seg.startX - 0.5, groundY - minH, seg.startX + 0.5, groundY - minH);
-        }
+      // Step transition to next bay
+      if (i < segHeights.length - 1) {
+        const nextH = segHeights[i + 1].height * vScale;
+        doc.line(seg.endX, groundY - bayH, seg.endX, groundY - nextH);
       }
 
-      // Sleeper/timber courses within each bay
+      // Vertical edges
+      if (i === 0) {
+        // Left edge already drawn
+      }
+      if (i === segHeights.length - 1) {
+        // Right edge down
+        doc.line(seg.endX, groundY - bayH, seg.endX, groundY);
+      }
+
+      // Sleeper courses for sleeper/timber walls
       if (wall.wallType === 'concrete-sleeper' || wall.wallType === 'timber') {
-        const courseH = 0.2 * vScale;
+        const courseH = 0.2 * vScale; // 200mm sleeper height
         const numCourses = Math.max(1, Math.round(bayH / courseH));
         const actualCH = bayH / numCourses;
         for (let c = 1; c < numCourses; c++) {
-          const cy2 = groundY - c * actualCH;
           doc.setLineWidth(0.15);
-          doc.line(seg.startX, cy2, seg.endX, cy2);
+          doc.line(seg.startX, groundY - c * actualCH, seg.endX, groundY - c * actualCH);
         }
       }
 
@@ -556,20 +562,54 @@ function drawSteppedElevation(
           doc.line(seg.startX, hy, Math.min(seg.startX + step * 2, seg.endX), Math.min(hy + step, groundY));
         }
       }
+    }
 
-      // Steel posts for sleeper walls
-      if (wall.wallType === 'concrete-sleeper') {
-        doc.setLineWidth(0.2);
-        doc.line(seg.startX, groundY, seg.startX, groundY - bayH);
-        doc.line(seg.endX, groundY, seg.endX, groundY - bayH);
+    // ── I-beam / steel posts at 2m spacing ──
+    if (wall.wallType === 'concrete-sleeper') {
+      const postSpacingM = 2.0; // 2m centres
+      const postSpacingPx = postSpacingM * hScale;
+      doc.setLineWidth(0.3); doc.setDrawColor(...C.black);
+
+      // Place posts from start at 2m intervals
+      for (let px = ox; px <= ox + wW + 0.1; px += postSpacingPx) {
+        // Find the height at this position
+        let postH = (segHeights[0]?.height || 1) * vScale;
+        for (const seg of segHeights) {
+          if (px >= seg.startX - 0.1 && px <= seg.endX + 0.1) {
+            postH = seg.height * vScale;
+            break;
+          }
+        }
+        // Draw I-beam profile (two flanges + web)
+        const flangeW = 1.2;
+        doc.setLineWidth(0.3);
+        // Web (vertical line)
+        doc.line(px, groundY, px, groundY - postH);
+        // Top flange
+        doc.line(px - flangeW, groundY - postH, px + flangeW, groundY - postH);
+        // Bottom flange
+        doc.line(px - flangeW, groundY, px + flangeW, groundY);
       }
 
-      // Bay height dimension on the right side of each bay
-      const dimX = seg.endX + 2;
-      doc.setLineWidth(0.1);
-      doc.line(dimX, groundY, dimX, groundY - bayH);
+      // Also place a post at the very end if not already there
+      const lastPostX = ox + wW;
+      const lastPx = Math.floor(wW / postSpacingPx) * postSpacingPx + ox;
+      if (Math.abs(lastPostX - lastPx) > 1) {
+        const lastSeg = segHeights[segHeights.length - 1];
+        const lastH = lastSeg.height * vScale;
+        const flangeW = 1.2;
+        doc.line(lastPostX, groundY, lastPostX, groundY - lastH);
+        doc.line(lastPostX - flangeW, groundY - lastH, lastPostX + flangeW, groundY - lastH);
+        doc.line(lastPostX - flangeW, groundY, lastPostX + flangeW, groundY);
+      }
+    }
+
+    // ── Per-bay height annotations ──
+    segHeights.forEach(seg => {
+      const bayH = seg.height * vScale;
+      const midX = (seg.startX + seg.endX) / 2;
       doc.setFontSize(4); doc.setFont(FONT, 'normal'); doc.setTextColor(...C.black);
-      doc.text(`${Math.round(seg.height * 1000)}`, dimX + 1, groundY - bayH / 2 + 1);
+      doc.text(`${seg.height.toFixed(1)}m`, midX, groundY - bayH - 2, { align: 'center' });
     });
   }
 
@@ -707,12 +747,13 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     // North arrow
     drawNorthArrow(doc, BORDER_INNER + 20, BORDER_INNER + 22);
 
-    // Legend - position towards the right, near title block
-    const legendX = drawingAreaRight - 155;
+    // Legend - right-aligned, close to the title block
+    const tbX = A3_W - BORDER_INNER - TB_WIDTH;
+    const legendX = tbX - 165;
     drawLegend(doc, legendX, BORDER_INNER + 10);
 
-    // Note boxes - also towards the right
-    drawNoteBoxes(doc, legendX, BORDER_INNER + 65, 150);
+    // Note boxes - right-aligned near title block
+    drawNoteBoxes(doc, legendX, BORDER_INNER + 65, tbX - legendX - 5);
 
     // Scale label bottom-left
     doc.setFontSize(10); doc.setFont(FONT, 'bold'); doc.setTextColor(...C.black);
@@ -737,9 +778,10 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     doc.addPage([420, 297], 'landscape');
     drawBorder(doc);
 
-    // Note boxes towards the right
-    const noteX = drawingAreaRight - 155;
-    drawNoteBoxes(doc, noteX, BORDER_INNER + 10, 150);
+    // Note boxes - right-aligned near title block
+    const tbX2 = A3_W - BORDER_INNER - TB_WIDTH;
+    const noteX = tbX2 - 165;
+    drawNoteBoxes(doc, noteX, BORDER_INNER + 10, tbX2 - noteX - 5);
 
     // Centre the elevation vertically
     const elevBaseY = BORDER_INNER + (A3_H - BORDER_INNER * 2) * 0.6;
