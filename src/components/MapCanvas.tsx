@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
-import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow, OverlayViewF, OverlayView } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength } from '@/lib/wallCalculations';
 import { Map, MapPin } from 'lucide-react';
