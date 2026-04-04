@@ -26,7 +26,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty('--sidebar-accent-foreground', `${branding.primaryHue} ${branding.primarySaturation}% 25%`);
 
     // Update page title with company name
-    document.title = `${branding.companyName} — Wall Planner`;
+    document.title = `Retaining Wall Planner — ${branding.companyName}`;
   }, [branding]);
 
   return (
