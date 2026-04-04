@@ -610,6 +610,55 @@ const MapCanvas = ({
               }}
             />
           ))}
+
+          {/* Terrain contour lines */}
+          {showTerrain && contourLines.map((contour, ci) =>
+            contour.segments.map((seg, si) => (
+              <Polyline
+                key={`contour-${ci}-${si}`}
+                path={[
+                  { lat: seg.lat1, lng: seg.lng1 },
+                  { lat: seg.lat2, lng: seg.lng2 },
+                ]}
+                options={{
+                  strokeColor: getContourColor(contour.level, contourElevRange.min, contourElevRange.max),
+                  strokeWeight: 1.5,
+                  strokeOpacity: 0.8,
+                  clickable: false,
+                  zIndex: 1,
+                }}
+              />
+            ))
+          )}
+
+          {/* Contour elevation labels */}
+          {showTerrain && contourLines.map((contour, ci) => {
+            if (contour.segments.length === 0) return null;
+            const midSeg = contour.segments[Math.floor(contour.segments.length / 2)];
+            return (
+              <OverlayViewF
+                key={`contour-label-${ci}`}
+                position={{ lat: (midSeg.lat1 + midSeg.lat2) / 2, lng: (midSeg.lng1 + midSeg.lng2) / 2 }}
+                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+              >
+                <div
+                  style={{
+                    transform: 'translate(-50%, -50%)',
+                    padding: '0px 3px',
+                    fontSize: '9px',
+                    fontWeight: 600,
+                    color: getContourColor(contour.level, contourElevRange.min, contourElevRange.max),
+                    background: 'rgba(0,0,0,0.5)',
+                    borderRadius: '2px',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {contour.level.toFixed(1)}m
+                </div>
+              </OverlayViewF>
+            );
+          })}
         </GoogleMap>
       </div>
 
