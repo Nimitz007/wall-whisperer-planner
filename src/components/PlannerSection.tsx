@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import AddressSearch from "./AddressSearch";
@@ -7,13 +7,15 @@ import WallEditorPanel from "./WallEditorPanel";
 import ProjectSummary from "./ProjectSummary";
 import PaymentGate from "./PaymentGate";
 import ExportGenerator from "./ExportGenerator";
-import { ProjectState, WallSegment, SiteContext } from "@/lib/types";
+import { ProjectState, WallSegment, WallPoint, SiteContext } from "@/lib/types";
+import { calculatePolylineLength, generateWallName } from "@/lib/wallCalculations";
+import { v4Fallback } from "@/lib/idUtils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check, Undo2 } from "lucide-react";
 
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
@@ -55,6 +57,8 @@ const PlannerSection = () => {
   });
 
   const [activeWallId, setActiveWallId] = useState<string | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
   const mapCenter =
     project.details.lat && project.details.lng
       ? ([project.details.lng, project.details.lat] as [number, number])
@@ -88,22 +92,26 @@ const PlannerSection = () => {
   // Step validation: determine which steps are accessible
   const hasAddress = !!project.details.address;
   const hasWalls = project.walls.length > 0;
+  const hasContactInfo =
+    project.details.clientName.trim().length > 0 &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail) &&
+    project.details.clientPhone.trim().length >= 8;
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
       case 0: return true; // Property always accessible
-      case 1: return hasAddress; // Draw requires address
-      case 2: return hasAddress && hasWalls; // Settings requires walls
-      case 3: return hasAddress; // Context accessible after address
-      case 4: return hasAddress && hasWalls; // Summary requires walls
-      case 5: return hasAddress && hasWalls; // Export requires walls
+      case 1: return hasAddress && hasContactInfo; // Draw requires address + contact
+      case 2: return hasAddress && hasContactInfo && hasWalls; // Settings requires walls
+      case 3: return hasAddress && hasContactInfo; // Context accessible after address + contact
+      case 4: return hasAddress && hasContactInfo && hasWalls; // Summary requires walls
+      case 5: return hasAddress && hasContactInfo && hasWalls; // Export requires walls
       default: return false;
     }
   };
 
   const isStepComplete = (step: number): boolean => {
     switch (step) {
-      case 0: return hasAddress;
+      case 0: return hasAddress && hasContactInfo;
       case 1: return hasWalls;
       case 2: return hasWalls && project.walls.every(w => w.averageHeight > 0);
       case 3: return true; // Context is optional
@@ -152,13 +160,17 @@ const PlannerSection = () => {
         <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
           {/* Map */}
           <div className="order-1">
-            <MapCanvas
-              center={mapCenter}
-              walls={project.walls}
-              onWallsChange={updateWalls}
-              activeWallId={activeWallId}
-              onActiveWallChange={setActiveWallId}
-            />
+             <MapCanvas
+               center={mapCenter}
+               walls={project.walls}
+               onWallsChange={updateWalls}
+               activeWallId={activeWallId}
+               onActiveWallChange={setActiveWallId}
+               isDrawing={isDrawing}
+               onIsDrawingChange={setIsDrawing}
+               currentPoints={currentPoints}
+               onCurrentPointsChange={setCurrentPoints}
+             />
           </div>
 
           {/* Side panel */}
@@ -230,36 +242,48 @@ const PlannerSection = () => {
 
                     <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Client Name</Label>
+                        <Label className="text-sm">Full Name <span className="text-destructive">*</span></Label>
                         <Input
                           value={project.details.clientName}
                           onChange={(e) => updateDetails({ clientName: e.target.value })}
                           placeholder="Full name"
                           className="rounded-lg"
+                          required
                         />
+                        {project.details.clientName.trim().length === 0 && (
+                          <p className="text-xs text-muted-foreground">Required to proceed</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Email</Label>
+                        <Label className="text-sm">Email <span className="text-destructive">*</span></Label>
                         <Input
                           type="email"
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
                           placeholder="email@example.com"
                           className={`rounded-lg ${!isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          required
                         />
-                        {!isEmailValid && (
+                        {!isEmailValid && project.details.clientEmail.length > 0 && (
                           <p className="text-xs text-destructive">Please enter a valid email address</p>
+                        )}
+                        {project.details.clientEmail.length === 0 && (
+                          <p className="text-xs text-muted-foreground">Required to proceed</p>
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-sm">Phone</Label>
+                        <Label className="text-sm">Phone <span className="text-destructive">*</span></Label>
                         <Input
                           type="tel"
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
                           placeholder="04XX XXX XXX"
                           className="rounded-lg"
+                          required
                         />
+                        {project.details.clientPhone.trim().length < 8 && (
+                          <p className="text-xs text-muted-foreground">Required to proceed (min 8 digits)</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-sm">Project Reference</Label>
@@ -274,38 +298,104 @@ const PlannerSection = () => {
                   </div>
                 )}
 
-                {project.currentStep === 1 && (
-                  <div className="space-y-4">
-                    <h3 className="font-display text-lg font-semibold text-foreground">Draw Walls</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Use the <strong>"Draw Wall"</strong> button on the map to place retaining wall lines. Click points
-                      to define the wall path, then click "Finish Wall".
-                    </p>
-                    {project.walls.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border bg-muted/50 p-6 text-center">
-                        <Pencil className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
-                        <p className="text-sm text-muted-foreground">No walls drawn yet</p>
-                        <p className="mt-1 text-xs text-muted-foreground/60">Click "Draw Wall" on the map to begin</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {project.walls.map((wall) => (
-                          <button
-                            key={wall.id}
-                            onClick={() => setActiveWallId(wall.id)}
-                            className={`w-full rounded-lg px-4 py-3 text-left text-sm transition-colors ${
-                              activeWallId === wall.id
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-foreground hover:bg-accent"
-                            }`}
-                          >
-                            <span className="font-medium">{wall.name}</span>
-                            <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                 {project.currentStep === 1 && (
+                   <div className="space-y-4">
+                     <h3 className="font-display text-lg font-semibold text-foreground">Draw Walls</h3>
+                     <p className="text-sm text-muted-foreground">
+                       Click <strong>"Start Drawing"</strong> below, then click points on the map to define the wall path.
+                     </p>
+
+                     {/* Drawing controls */}
+                     <div className="space-y-2">
+                       {!isDrawing ? (
+                         <Button onClick={() => setIsDrawing(true)} className="w-full gap-2">
+                           <Pencil className="h-4 w-4" />
+                           Start Drawing
+                         </Button>
+                       ) : (
+                         <div className="space-y-2">
+                           <Button
+                             onClick={() => {
+                               if (currentPoints.length < 2) {
+                                 setCurrentPoints([]);
+                                 setIsDrawing(false);
+                                 return;
+                               }
+                               const length = calculatePolylineLength(currentPoints);
+                               const newWall: WallSegment = {
+                                 id: v4Fallback(),
+                                 name: generateWallName(project.walls.length),
+                                 points: currentPoints,
+                                 wallType: 'concrete-sleeper',
+                                 length,
+                                 averageHeight: 1.0,
+                                 maxHeight: 1.2,
+                                 offsetFromDwelling: 0,
+                                 offsetFromBoundary: 0,
+                                 hasSurcharge: false,
+                                 hasFenceAbove: false,
+                                 hasDrainageRequired: true,
+                                 notes: '',
+                                 materialAssumptions: '',
+                               };
+                               updateWalls([...project.walls, newWall]);
+                               setActiveWallId(newWall.id);
+                               setCurrentPoints([]);
+                               setIsDrawing(false);
+                               toast.success(`${newWall.name} added`, { description: `${length.toFixed(1)}m retaining wall` });
+                             }}
+                             className="w-full gap-2"
+                             disabled={currentPoints.length < 2}
+                           >
+                             Finish Wall {currentPoints.length >= 2 && `(${calculatePolylineLength(currentPoints).toFixed(1)}m)`}
+                           </Button>
+                           <div className="flex gap-2">
+                             <Button
+                               onClick={() => setCurrentPoints((prev) => prev.slice(0, -1))}
+                               variant="outline"
+                               size="sm"
+                               className="flex-1 gap-1.5"
+                               disabled={currentPoints.length === 0}
+                             >
+                               <Undo2 className="h-3.5 w-3.5" /> Undo Point
+                             </Button>
+                             <Button
+                               onClick={() => { setCurrentPoints([]); setIsDrawing(false); }}
+                               variant="outline"
+                               size="sm"
+                               className="flex-1"
+                             >
+                               Cancel
+                             </Button>
+                           </div>
+                           <p className="text-xs text-muted-foreground text-center">
+                             Click on the map to place wall points
+                           </p>
+                         </div>
+                       )}
+                     </div>
+
+                     {project.walls.length > 0 && (
+                       <div className="space-y-2">
+                         <Separator />
+                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Drawn Walls</p>
+                         {project.walls.map((wall) => (
+                           <button
+                             key={wall.id}
+                             onClick={() => setActiveWallId(wall.id)}
+                             className={`w-full rounded-lg px-4 py-3 text-left text-sm transition-colors ${
+                               activeWallId === wall.id
+                                 ? "bg-primary text-primary-foreground"
+                                 : "bg-muted text-foreground hover:bg-accent"
+                             }`}
+                           >
+                             <span className="font-medium">{wall.name}</span>
+                             <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
+                           </button>
+                         ))}
+                       </div>
+                     )}
+                   </div>
                 )}
 
                 {project.currentStep === 2 && (

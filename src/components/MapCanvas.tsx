@@ -1,9 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
-import { calculatePolylineLength, generateWallName } from '@/lib/wallCalculations';
-import { Map, Pencil, Trash2, Undo2, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { calculatePolylineLength } from '@/lib/wallCalculations';
+import { Map, Trash2, MapPin } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { v4Fallback } from '@/lib/idUtils';
+
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
 type MapTypeId = 'roadmap' | 'satellite' | 'hybrid';
@@ -28,17 +27,23 @@ const MapCanvas = ({
   onWallsChange,
   activeWallId,
   onActiveWallChange,
+  isDrawing,
+  onIsDrawingChange,
+  currentPoints,
+  onCurrentPointsChange,
 }: {
   center: [number, number] | null; // [lng, lat]
   walls: WallSegment[];
   onWallsChange: (walls: WallSegment[]) => void;
   activeWallId: string | null;
   onActiveWallChange: (id: string | null) => void;
+  isDrawing: boolean;
+  onIsDrawingChange: (v: boolean) => void;
+  currentPoints: WallPoint[];
+  onCurrentPointsChange: (points: WallPoint[] | ((prev: WallPoint[]) => WallPoint[])) => void;
 }) => {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<MapTypeId>('hybrid');
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
   const [wallToDelete, setWallToDelete] = useState<WallSegment | null>(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -62,42 +67,10 @@ const MapCanvas = ({
     (e: google.maps.MapMouseEvent) => {
       if (!isDrawing || !e.latLng) return;
       const point: WallPoint = { lng: e.latLng.lng(), lat: e.latLng.lat() };
-      setCurrentPoints((prev) => [...prev, point]);
+      onCurrentPointsChange((prev) => [...prev, point]);
     },
-    [isDrawing]
+    [isDrawing, onCurrentPointsChange]
   );
-
-  const finishWall = () => {
-    if (currentPoints.length < 2) {
-      setCurrentPoints([]);
-      setIsDrawing(false);
-      return;
-    }
-
-    const length = calculatePolylineLength(currentPoints);
-    const newWall: WallSegment = {
-      id: v4Fallback(),
-      name: generateWallName(walls.length),
-      points: currentPoints,
-      wallType: 'concrete-sleeper',
-      length,
-      averageHeight: 1.0,
-      maxHeight: 1.2,
-      offsetFromDwelling: 0,
-      offsetFromBoundary: 0,
-      hasSurcharge: false,
-      hasFenceAbove: false,
-      hasDrainageRequired: true,
-      notes: '',
-      materialAssumptions: '',
-    };
-
-    onWallsChange([...walls, newWall]);
-    onActiveWallChange(newWall.id);
-    setCurrentPoints([]);
-    setIsDrawing(false);
-    toast.success(`${newWall.name} added`, { description: `${length.toFixed(1)}m retaining wall` });
-  };
 
   const confirmDeleteWall = (wall: WallSegment) => setWallToDelete(wall);
 
@@ -109,8 +82,6 @@ const MapCanvas = ({
     setWallToDelete(null);
     toast('Wall deleted', { description: `${name} has been removed` });
   };
-
-  const undoLastPoint = () => setCurrentPoints((prev) => prev.slice(0, -1));
 
   if (!isLoaded) {
     return (
@@ -247,31 +218,6 @@ const MapCanvas = ({
           ))}
         </div>
       </div>
-
-      {/* Drawing controls */}
-      {center && (
-        <div className="absolute right-3 top-3 flex flex-col gap-2 sm:right-4 sm:top-4">
-          {!isDrawing ? (
-            <Button onClick={() => setIsDrawing(true)} size="sm" className="gap-2 rounded-lg shadow-card">
-              <Pencil className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Draw Wall</span>
-              <span className="sm:hidden">Draw</span>
-            </Button>
-          ) : (
-            <>
-              <Button onClick={finishWall} size="sm" className="gap-2 rounded-lg shadow-card">
-                Finish Wall
-              </Button>
-              <Button onClick={undoLastPoint} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card" disabled={currentPoints.length === 0}>
-                <Undo2 className="h-3.5 w-3.5" /> Undo
-              </Button>
-              <Button onClick={() => { setCurrentPoints([]); setIsDrawing(false); }} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card">
-                Cancel
-              </Button>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Drawing instructions */}
       {isDrawing && (
