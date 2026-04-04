@@ -25,8 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
-import { fetchSingleElevation } from '@/lib/elevationService';
-import { fetchElevationGrid, generateContourLines, getContourColor, type ElevationGridPoint } from '@/lib/elevationGrid';
+import { fetchSingleElevation, fetchElevations } from '@/lib/elevationService';
+import { fetchElevationGrid, generateContourLines, getContourColor } from '@/lib/elevationGrid';
 
 type MapTypeId = 'satellite' | 'hybrid';
 
