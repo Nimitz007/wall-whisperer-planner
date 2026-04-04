@@ -1,4 +1,4 @@
-import { GOOGLE_MAPS_API_KEY } from './googleMapsConfig';
+import { fetchElevations } from './elevationService';
 
 export interface ElevationGridPoint {
   lat: number;
@@ -8,7 +8,7 @@ export interface ElevationGridPoint {
 
 /**
  * Fetch a grid of elevations covering the visible map bounds.
- * Returns a flat array of points with elevation data.
+ * Uses the Google Maps JS ElevationService (no CORS issues).
  */
 export async function fetchElevationGrid(
   bounds: { north: number; south: number; east: number; west: number },
@@ -27,33 +27,7 @@ export async function fetchElevationGrid(
     }
   }
 
-  // Google Elevation API allows up to 512 locations per request
-  const batchSize = 256;
-  const results: ElevationGridPoint[] = [];
-
-  for (let i = 0; i < points.length; i += batchSize) {
-    const batch = points.slice(i, i + batchSize);
-    const locations = batch.map((p) => `${p.lat},${p.lng}`).join('|');
-    const url = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(locations)}&key=${GOOGLE_MAPS_API_KEY}`;
-
-    try {
-      const res = await fetch(url);
-      if (!res.ok) continue;
-      const data = await res.json();
-      if (data.status !== 'OK' || !Array.isArray(data.results)) continue;
-
-      data.results.forEach((r: any, idx: number) => {
-        results.push({
-          lat: batch[idx].lat,
-          lng: batch[idx].lng,
-          elevation: r.elevation as number,
-        });
-      });
-    } catch (e) {
-      console.error('Elevation grid fetch error', e);
-    }
-  }
-
+  const results = await fetchElevations(points);
   return results;
 }
 
@@ -72,7 +46,6 @@ export function generateContourLines(
   const minElev = Math.min(...elevations);
   const maxElev = Math.max(...elevations);
 
-  // Round to interval
   const startLevel = Math.ceil(minElev / interval) * interval;
   const endLevel = Math.floor(maxElev / interval) * interval;
 
@@ -83,7 +56,6 @@ export function generateContourLines(
 
     for (let r = 0; r < gridSize - 1; r++) {
       for (let c = 0; c < gridSize - 1; c++) {
-        // Four corners of this cell
         const tl = grid[r * gridSize + c];
         const tr = grid[r * gridSize + c + 1];
         const bl = grid[(r + 1) * gridSize + c];
@@ -92,7 +64,6 @@ export function generateContourLines(
         const corners = [tl, tr, br, bl];
         const vals = corners.map((p) => p.elevation);
 
-        // Marching squares case index
         let caseIndex = 0;
         if (vals[0] >= level) caseIndex |= 8;
         if (vals[1] >= level) caseIndex |= 4;
@@ -101,7 +72,6 @@ export function generateContourLines(
 
         if (caseIndex === 0 || caseIndex === 15) continue;
 
-        // Interpolate edge crossings
         const interp = (p1: ElevationGridPoint, p2: ElevationGridPoint) => {
           const t = (level - p1.elevation) / (p2.elevation - p1.elevation);
           return {
@@ -110,7 +80,6 @@ export function generateContourLines(
           };
         };
 
-        // Edges: top(0-1), right(1-2), bottom(2-3), left(3-0)
         const edges: Record<string, { lat: number; lng: number }> = {};
         const getEdge = (a: number, b: number, key: string) => {
           if (!edges[key]) {
@@ -130,7 +99,6 @@ export function generateContourLines(
           if (p1 && p2) segments.push({ lat1: p1.lat, lng1: p1.lng, lat2: p2.lat, lng2: p2.lng });
         };
 
-        // Standard marching squares line segments
         switch (caseIndex) {
           case 1: addSeg(left(), bottom()); break;
           case 2: addSeg(bottom(), right()); break;
@@ -164,7 +132,6 @@ export function generateContourLines(
 export function getContourColor(level: number, minElev: number, maxElev: number): string {
   const range = maxElev - minElev || 1;
   const t = (level - minElev) / range;
-  // Low = blue-green, high = orange-red
-  const hue = 200 - t * 200; // 200 (blue) -> 0 (red)
+  const hue = 200 - t * 200;
   return `hsla(${hue}, 80%, 50%, 0.7)`;
 }

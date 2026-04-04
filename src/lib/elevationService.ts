@@ -1,40 +1,49 @@
-import { GOOGLE_MAPS_API_KEY } from './googleMapsConfig';
-
 export interface ElevationResult {
   lat: number;
   lng: number;
-  elevation: number; // metres above sea level
+  elevation: number; // metres above sea level (AHD)
 }
 
 /**
- * Fetch elevation for one or more lat/lng points using the Google Elevation API.
- * Returns elevation in metres (AHD / sea level).
+ * Fetch elevation for one or more lat/lng points using the Google Maps JS ElevationService.
+ * Must be called after the Google Maps JS API is loaded.
  */
 export async function fetchElevations(
   points: { lat: number; lng: number }[]
 ): Promise<ElevationResult[]> {
   if (points.length === 0) return [];
-
-  const locations = points.map((p) => `${p.lat},${p.lng}`).join('|');
-  const url = `https://maps.googleapis.com/maps/api/elevation/json?locations=${encodeURIComponent(locations)}&key=${GOOGLE_MAPS_API_KEY}`;
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    console.error('Elevation API HTTP error', res.status);
+  if (typeof google === 'undefined' || !google.maps?.ElevationService) {
+    console.error('Google Maps ElevationService not available');
     return [];
   }
 
-  const data = await res.json();
-  if (data.status !== 'OK' || !Array.isArray(data.results)) {
-    console.error('Elevation API error', data.status, data.error_message);
-    return [];
+  const service = new google.maps.ElevationService();
+  const locations = points.map((p) => new google.maps.LatLng(p.lat, p.lng));
+
+  // ElevationService supports up to 512 locations per request
+  const batchSize = 256;
+  const results: ElevationResult[] = [];
+
+  for (let i = 0; i < locations.length; i += batchSize) {
+    const batch = locations.slice(i, i + batchSize);
+    const batchPoints = points.slice(i, i + batchSize);
+    try {
+      const response = await service.getElevationForLocations({ locations: batch });
+      if (response.results) {
+        response.results.forEach((r, idx) => {
+          results.push({
+            lat: batchPoints[idx].lat,
+            lng: batchPoints[idx].lng,
+            elevation: r.elevation,
+          });
+        });
+      }
+    } catch (e) {
+      console.error('ElevationService error', e);
+    }
   }
 
-  return data.results.map((r: any, i: number) => ({
-    lat: points[i].lat,
-    lng: points[i].lng,
-    elevation: r.elevation as number,
-  }));
+  return results;
 }
 
 /**
