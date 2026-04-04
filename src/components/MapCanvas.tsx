@@ -75,8 +75,8 @@ const MapCanvas = ({
 
   const finishWall = () => {
     if (currentPoints.length < 2) {
-      setCurrentPoints([]);
-      setIsDrawing(false);
+      onCurrentPointsChange([]);
+      onIsDrawingChange(false);
       return;
     }
 
