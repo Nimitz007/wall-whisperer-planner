@@ -2,14 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { Search, MapPin, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
-interface AddressResult {
-  place_name: string;
-  center: [number, number];
-  context?: Array<{ id: string; text: string }>;
-}
-
 interface AddressSearchProps {
-  mapboxToken: string;
   onSelect: (result: {
     address: string;
     suburb: string;
@@ -20,34 +13,57 @@ interface AddressSearchProps {
   }) => void;
 }
 
-const AddressSearch = ({ mapboxToken, onSelect }: AddressSearchProps) => {
+const AddressSearch = ({ onSelect }: AddressSearchProps) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<AddressResult[]>([]);
+  const [results, setResults] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const containerRef = useRef<HTMLDivElement>(null);
+  const serviceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null);
+
+  useEffect(() => {
+    if (window.google?.maps?.places) {
+      serviceRef.current = new google.maps.places.AutocompleteService();
+      geocoderRef.current = new google.maps.Geocoder();
+    }
+  }, []);
+
+  // Retry init when google becomes available
+  useEffect(() => {
+    if (serviceRef.current) return;
+    const interval = setInterval(() => {
+      if (window.google?.maps?.places) {
+        serviceRef.current = new google.maps.places.AutocompleteService();
+        geocoderRef.current = new google.maps.Geocoder();
+        clearInterval(interval);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const search = useCallback(async (q: string) => {
-    if (q.length < 3 || !mapboxToken) {
+    if (q.length < 3 || !serviceRef.current) {
       setResults([]);
       return;
     }
 
     setIsLoading(true);
     try {
-      const res = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${mapboxToken}&country=au&types=address&limit=5`
-      );
-      const data = await res.json();
-      setResults(data.features || []);
+      const response = await serviceRef.current.getPlacePredictions({
+        input: q,
+        componentRestrictions: { country: 'au' },
+        types: ['address'],
+      });
+      setResults(response?.predictions || []);
       setShowResults(true);
     } catch {
       setResults([]);
     } finally {
       setIsLoading(false);
     }
-  }, [mapboxToken]);
+  }, []);
 
   const handleChange = (value: string) => {
     setQuery(value);
@@ -55,20 +71,31 @@ const AddressSearch = ({ mapboxToken, onSelect }: AddressSearchProps) => {
     timeoutRef.current = setTimeout(() => search(value), 300);
   };
 
-  const handleSelect = (result: AddressResult) => {
-    const getContext = (prefix: string) =>
-      result.context?.find(c => c.id.startsWith(prefix))?.text || '';
-
-    setQuery(result.place_name);
+  const handleSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
+    setQuery(prediction.description);
     setShowResults(false);
-    onSelect({
-      address: result.place_name,
-      suburb: getContext('locality') || getContext('place'),
-      state: getContext('region'),
-      postcode: getContext('postcode'),
-      lat: result.center[1],
-      lng: result.center[0],
-    });
+
+    if (!geocoderRef.current) return;
+
+    try {
+      const response = await geocoderRef.current.geocode({ placeId: prediction.place_id });
+      const result = response.results[0];
+      if (!result) return;
+
+      const getComponent = (type: string) =>
+        result.address_components.find(c => c.types.includes(type))?.long_name || '';
+
+      onSelect({
+        address: result.formatted_address,
+        suburb: getComponent('locality') || getComponent('sublocality'),
+        state: getComponent('administrative_area_level_1'),
+        postcode: getComponent('postal_code'),
+        lat: result.geometry.location.lat(),
+        lng: result.geometry.location.lng(),
+      });
+    } catch {
+      // Geocode failed silently
+    }
   };
 
   useEffect(() => {
@@ -98,23 +125,17 @@ const AddressSearch = ({ mapboxToken, onSelect }: AddressSearchProps) => {
 
       {showResults && results.length > 0 && (
         <div className="absolute z-50 mt-2 w-full rounded-xl border border-border bg-card shadow-elevated">
-          {results.map((result, i) => (
+          {results.map((prediction) => (
             <button
-              key={i}
-              onClick={() => handleSelect(result)}
+              key={prediction.place_id}
+              onClick={() => handleSelect(prediction)}
               className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-accent"
             >
               <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span className="text-sm text-foreground">{result.place_name}</span>
+              <span className="text-sm text-foreground">{prediction.description}</span>
             </button>
           ))}
         </div>
-      )}
-
-      {!mapboxToken && (
-        <p className="mt-2 text-xs text-destructive">
-          Mapbox token required. Add your token to enable address search.
-        </p>
       )}
     </div>
   );
