@@ -4,7 +4,7 @@ import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
 import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
 import { Button } from '@/components/ui/button';
-import { FileText, Table, Download, Loader2 } from 'lucide-react';
+import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBranding } from '@/contexts/BrandingContext';
 
@@ -180,15 +180,8 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         variant="outline"
         size="lg"
       >
-        <div className="flex items-center gap-3">
-          {loadingSitePlan ? (
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          ) : (
-            <FileText className="h-4 w-4 text-primary" />
-          )}
-          <span className="text-sm font-semibold">{loadingSitePlan ? 'Generating...' : 'Concept Site Plan (PDF)'}</span>
-        </div>
-        {!loadingSitePlan && <Download className="h-4 w-4" />}
+        <span className="text-sm font-semibold">{loadingSitePlan ? 'Generating...' : 'Concept Site Plan (PDF)'}</span>
+        {loadingSitePlan ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       </Button>
 
       <Button
@@ -198,15 +191,8 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         variant="outline"
         size="lg"
       >
-        <div className="flex items-center gap-3">
-          {loadingSummary ? (
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          ) : (
-            <FileText className="h-4 w-4 text-primary" />
-          )}
-          <span className="text-sm font-semibold">{loadingSummary ? 'Generating...' : 'Project Summary (PDF)'}</span>
-        </div>
-        {!loadingSummary && <Download className="h-4 w-4" />}
+        <span className="text-sm font-semibold">{loadingSummary ? 'Generating...' : 'Project Summary (PDF)'}</span>
+        {loadingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       </Button>
 
       <Button
@@ -216,15 +202,8 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         variant="outline"
         size="lg"
       >
-        <div className="flex items-center gap-3">
-          {loadingCSV ? (
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          ) : (
-            <Table className="h-4 w-4 text-primary" />
-          )}
-          <span className="text-sm font-semibold">{loadingCSV ? 'Generating...' : 'Wall Schedule (CSV)'}</span>
-        </div>
-        {!loadingCSV && <Download className="h-4 w-4" />}
+        <span className="text-sm font-semibold">{loadingCSV ? 'Generating...' : 'Wall Schedule (CSV)'}</span>
+        {loadingCSV ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
       </Button>
     </div>
   );
