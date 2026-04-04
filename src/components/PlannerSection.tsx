@@ -331,7 +331,7 @@ const PlannerSection = () => {
                       {!isDrawing ? (
                         <Button onClick={() => setIsDrawing(true)} className="w-full gap-2">
                           <Pencil className="h-4 w-4" />
-                          Start Drawing
+                          {project.walls.length > 0 ? 'Draw Another Wall' : 'Start Drawing'}
                         </Button>
                       ) : (
                         <div className="space-y-2">
