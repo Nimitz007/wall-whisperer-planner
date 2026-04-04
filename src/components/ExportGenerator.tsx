@@ -124,9 +124,9 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
   const generateCSV = useCallback(() => {
     setLoadingCSV(true);
     try {
-      const headers = ['Segment Name', 'Wall Type', 'Length (m)', 'Avg Height (m)', 'Max Height (m)', 'Offset Dwelling (m)', 'Offset Boundary (m)', 'Surcharge', 'Fence Above', 'Drainage', 'Notes'];
+      const headers = ['Segment Name', 'Wall Type', 'Length (m)', 'Min Height (m)', 'Max Height (m)', 'Offset Dwelling (m)', 'Offset Boundary (m)', 'Surcharge', 'Fence Above', 'Drainage', 'Notes'];
       const rows = project.walls.map(w => [
-        w.name, WALL_TYPE_LABELS[w.wallType], w.length.toFixed(1), w.averageHeight.toString(), w.maxHeight.toString(),
+        w.name, WALL_TYPE_LABELS[w.wallType], w.length.toFixed(1), w.minHeight.toString(), w.maxHeight.toString(),
         w.offsetFromDwelling.toString(), w.offsetFromBoundary.toString(),
         w.hasSurcharge ? 'Yes' : 'No', w.hasFenceAbove ? 'Yes' : 'No', w.hasDrainageRequired ? 'Yes' : 'No', w.notes,
       ]);
