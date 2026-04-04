@@ -94,10 +94,11 @@ const PlannerSection = () => {
   // Step validation: determine which steps are accessible
   const hasAddress = !!project.details.address;
   const hasWalls = project.walls.length > 0;
+  const isFullName = /^\S+\s+\S+/.test(project.details.clientName.trim());
   const hasContactInfo =
-    project.details.clientName.trim().length > 0 &&
+    isFullName &&
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail) &&
-    project.details.clientPhone.trim().length >= 8;
+    project.details.clientPhone.replace(/\D/g, '').length >= 10;
 
   const isStepAccessible = (step: number): boolean => {
     switch (step) {
@@ -247,12 +248,12 @@ const PlannerSection = () => {
                         <Input
                           value={project.details.clientName}
                           onChange={(e) => updateDetails({ clientName: e.target.value })}
-                          placeholder="Full name"
-                          className="rounded-lg"
+                          placeholder="First and last name"
+                          className={`rounded-lg ${project.details.clientName.trim().length > 0 && !isFullName ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
-                        {project.details.clientName.trim().length === 0 && (
-                          <p className="text-xs text-muted-foreground">Required to proceed</p>
+                        {project.details.clientName.trim().length > 0 && !isFullName && (
+                          <p className="text-xs text-destructive">Please enter first and last name</p>
                         )}
                       </div>
                       <div className="space-y-1.5">
@@ -262,14 +263,11 @@ const PlannerSection = () => {
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
                           placeholder="email@example.com"
-                          className={`rounded-lg ${!isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${!isEmailValid && project.details.clientEmail.length > 0 ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
                         {!isEmailValid && project.details.clientEmail.length > 0 && (
                           <p className="text-xs text-destructive">Please enter a valid email address</p>
-                        )}
-                        {project.details.clientEmail.length === 0 && (
-                          <p className="text-xs text-muted-foreground">Required to proceed</p>
                         )}
                       </div>
                       <div className="space-y-1.5">
@@ -279,11 +277,11 @@ const PlannerSection = () => {
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
                           placeholder="04XX XXX XXX"
-                          className="rounded-lg"
+                          className={`rounded-lg ${project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length < 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
-                        {project.details.clientPhone.trim().length < 8 && (
-                          <p className="text-xs text-muted-foreground">Required to proceed (min 8 digits)</p>
+                        {project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length < 10 && (
+                          <p className="text-xs text-destructive">Please enter at least 10 digits</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 pt-1">
