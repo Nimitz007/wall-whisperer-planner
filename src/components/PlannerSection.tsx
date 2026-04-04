@@ -7,7 +7,7 @@ import WallEditorPanel from "./WallEditorPanel";
 import ProjectSummary from "./ProjectSummary";
 import PaymentGate from "./PaymentGate";
 import ExportGenerator from "./ExportGenerator";
-import { ProjectState, WallSegment, WallPoint, SiteContext } from "@/lib/types";
+import { ProjectState, WallSegment, WallPoint } from "@/lib/types";
 import { calculatePolylineLength, generateWallName } from "@/lib/wallCalculations";
 import { v4Fallback } from "@/lib/idUtils";
 import { Input } from "@/components/ui/input";
