@@ -125,6 +125,7 @@ const MapCanvas = ({
   const [contourLines, setContourLines] = useState<{ level: number; segments: { lat1: number; lng1: number; lat2: number; lng2: number }[] }[]>([]);
   const [contourElevRange, setContourElevRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
   const terrainBoundsRef = useRef<string | null>(null);
+  const [nodeElevations, setNodeElevations] = useState<Record<string, number>>({}); // key: "wallId-pointIndex"
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
