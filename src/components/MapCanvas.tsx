@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow, OverlayViewF, OverlayView } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength } from '@/lib/wallCalculations';
-import { Map, MapPin } from 'lucide-react';
+import { Map, MapPin, Mountain } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { fetchSingleElevation } from '@/lib/elevationService';
+import { fetchElevationGrid, generateContourLines, getContourColor, type ElevationGridPoint } from '@/lib/elevationGrid';
 
 type MapTypeId = 'satellite' | 'hybrid';
 
@@ -119,6 +120,11 @@ const MapCanvas = ({
   const firstNodeElevationRef = useRef<number | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
   const [editHeightInput, setEditHeightInput] = useState('');
+  const [showTerrain, setShowTerrain] = useState(false);
+  const [terrainLoading, setTerrainLoading] = useState(false);
+  const [contourLines, setContourLines] = useState<{ level: number; segments: { lat1: number; lng1: number; lat2: number; lng2: number }[] }[]>([]);
+  const [contourElevRange, setContourElevRange] = useState<{ min: number; max: number }>({ min: 0, max: 0 });
+  const terrainBoundsRef = useRef<string | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -304,6 +310,50 @@ const MapCanvas = ({
   const wallAngles = useMemo(() => findWallAngles(walls), [walls]);
   const endpoints = useMemo(() => (isDrawing ? getEndpoints(walls) : []), [isDrawing, walls]);
 
+  // Fetch terrain contours when toggled on
+  const fetchTerrainContours = useCallback(() => {
+    if (!mapRef.current) return;
+    const bounds = mapRef.current.getBounds();
+    if (!bounds) return;
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+    const boundsKey = `${ne.lat().toFixed(6)},${ne.lng().toFixed(6)},${sw.lat().toFixed(6)},${sw.lng().toFixed(6)}`;
+    if (terrainBoundsRef.current === boundsKey) return;
+    terrainBoundsRef.current = boundsKey;
+
+    setTerrainLoading(true);
+    fetchElevationGrid({
+      north: ne.lat(),
+      south: sw.lat(),
+      east: ne.lng(),
+      west: sw.lng(),
+    }, 20).then((grid) => {
+      if (grid.length === 0) { setTerrainLoading(false); return; }
+      const elevs = grid.map((p) => p.elevation);
+      const minE = Math.min(...elevs);
+      const maxE = Math.max(...elevs);
+      setContourElevRange({ min: minE, max: maxE });
+      const range = maxE - minE;
+      const interval = range > 10 ? 2 : range > 5 ? 1 : 0.5;
+      const contours = generateContourLines(grid, 20, interval);
+      setContourLines(contours);
+      setTerrainLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (showTerrain) {
+      fetchTerrainContours();
+    } else {
+      setContourLines([]);
+      terrainBoundsRef.current = null;
+    }
+  }, [showTerrain, fetchTerrainContours]);
+
+  const handleMapIdle = useCallback(() => {
+    if (showTerrain) fetchTerrainContours();
+  }, [showTerrain, fetchTerrainContours]);
+
   const initialCenter = center ? { lat: center[1], lng: center[0] } : { lat: -25.2744, lng: 133.7751 };
   const initialZoom = center ? 20 : 4;
 
@@ -327,6 +377,7 @@ const MapCanvas = ({
           zoom={initialZoom}
           onLoad={onMapLoad}
           onClick={handleMapClick}
+          onIdle={handleMapIdle}
           mapTypeId={mapType}
           options={{
             disableDefaultUI: false,
@@ -559,6 +610,55 @@ const MapCanvas = ({
               }}
             />
           ))}
+
+          {/* Terrain contour lines */}
+          {showTerrain && contourLines.map((contour, ci) =>
+            contour.segments.map((seg, si) => (
+              <Polyline
+                key={`contour-${ci}-${si}`}
+                path={[
+                  { lat: seg.lat1, lng: seg.lng1 },
+                  { lat: seg.lat2, lng: seg.lng2 },
+                ]}
+                options={{
+                  strokeColor: getContourColor(contour.level, contourElevRange.min, contourElevRange.max),
+                  strokeWeight: 1.5,
+                  strokeOpacity: 0.8,
+                  clickable: false,
+                  zIndex: 1,
+                }}
+              />
+            ))
+          )}
+
+          {/* Contour elevation labels */}
+          {showTerrain && contourLines.map((contour, ci) => {
+            if (contour.segments.length === 0) return null;
+            const midSeg = contour.segments[Math.floor(contour.segments.length / 2)];
+            return (
+              <OverlayViewF
+                key={`contour-label-${ci}`}
+                position={{ lat: (midSeg.lat1 + midSeg.lat2) / 2, lng: (midSeg.lng1 + midSeg.lng2) / 2 }}
+                mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
+              >
+                <div
+                  style={{
+                    transform: 'translate(-50%, -50%)',
+                    padding: '0px 3px',
+                    fontSize: '9px',
+                    fontWeight: 600,
+                    color: getContourColor(contour.level, contourElevRange.min, contourElevRange.max),
+                    background: 'rgba(0,0,0,0.5)',
+                    borderRadius: '2px',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {contour.level.toFixed(1)}m
+                </div>
+              </OverlayViewF>
+            );
+          })}
         </GoogleMap>
       </div>
 
@@ -588,6 +688,15 @@ const MapCanvas = ({
             </button>
           ))}
         </div>
+        <button
+          onClick={() => setShowTerrain((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-medium shadow-card transition-colors sm:px-3 sm:py-2 sm:text-xs ${
+            showTerrain ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-accent'
+          }`}
+        >
+          <Mountain className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+          {terrainLoading ? 'Loading…' : 'Terrain'}
+        </button>
       </div>
 
       {/* Drawing instructions */}
