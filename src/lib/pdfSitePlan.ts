@@ -152,7 +152,7 @@ function drawTitleBlock(doc: jsPDF, w: number, h: number, project: ProjectState,
   const rows: [string, string][] = [
     ['PROJECT', project.details.address || 'N/A'],
     ['CLIENT', project.details.clientName || 'N/A'],
-    ['REF', project.details.projectReference || 'N/A'],
+    ['REF', project.details.isBuilder ? project.details.companyName || 'N/A' : 'N/A'],
     ['DATE', new Date().toLocaleDateString('en-AU')],
     ['SHEET', sheetTitle],
   ];
