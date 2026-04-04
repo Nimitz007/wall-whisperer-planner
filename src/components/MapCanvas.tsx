@@ -64,6 +64,13 @@ const MapCanvas = ({
     }
   }, [center]);
 
+  // Sync map type
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.setMapTypeId(mapType);
+    }
+  }, [mapType]);
+
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
       if (!isDrawing || !e.latLng) return;
