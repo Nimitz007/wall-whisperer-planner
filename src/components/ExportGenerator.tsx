@@ -161,58 +161,55 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       <Button
         onClick={generatePDFSitePlan}
         disabled={loadingSitePlan}
-        className="w-full justify-start gap-3 rounded-xl"
+        className="w-full justify-between rounded-xl"
         variant="outline"
         size="lg"
       >
-        {loadingSitePlan ? (
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        ) : (
-          <FileText className="h-4 w-4 text-primary" />
-        )}
-        <div className="text-left">
-          <p className="text-sm font-semibold">{loadingSitePlan ? 'Generating...' : 'Concept Site Plan (PDF)'}</p>
-          <p className="text-xs text-muted-foreground">A3 landscape with wall layout and schedule</p>
+        <div className="flex items-center gap-3">
+          {loadingSitePlan ? (
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          ) : (
+            <FileText className="h-4 w-4 text-primary" />
+          )}
+          <span className="text-sm font-semibold">{loadingSitePlan ? 'Generating...' : 'Concept Site Plan (PDF)'}</span>
         </div>
-        {!loadingSitePlan && <Download className="ml-auto h-4 w-4" />}
+        {!loadingSitePlan && <Download className="h-4 w-4" />}
       </Button>
 
       <Button
         onClick={generatePDFSummary}
         disabled={loadingSummary}
-        className="w-full justify-start gap-3 rounded-xl"
+        className="w-full justify-between rounded-xl"
         variant="outline"
         size="lg"
       >
-        {loadingSummary ? (
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        ) : (
-          <FileText className="h-4 w-4 text-primary" />
-        )}
-        <div className="text-left">
-          <p className="text-sm font-semibold">{loadingSummary ? 'Generating...' : 'Project Summary (PDF)'}</p>
-          <p className="text-xs text-muted-foreground">Full details, materials, and disclaimer</p>
+        <div className="flex items-center gap-3">
+          {loadingSummary ? (
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          ) : (
+            <FileText className="h-4 w-4 text-primary" />
+          )}
+          <span className="text-sm font-semibold">{loadingSummary ? 'Generating...' : 'Project Summary (PDF)'}</span>
         </div>
-        {!loadingSummary && <Download className="ml-auto h-4 w-4" />}
+        {!loadingSummary && <Download className="h-4 w-4" />}
       </Button>
 
       <Button
         onClick={generateCSV}
         disabled={loadingCSV}
-        className="w-full justify-start gap-3 rounded-xl"
+        className="w-full justify-between rounded-xl"
         variant="outline"
         size="lg"
       >
-        {loadingCSV ? (
-          <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        ) : (
-          <Table className="h-4 w-4 text-primary" />
-        )}
-        <div className="text-left">
-          <p className="text-sm font-semibold">{loadingCSV ? 'Generating...' : 'Wall Schedule (CSV)'}</p>
-          <p className="text-xs text-muted-foreground">Spreadsheet export of all wall data</p>
+        <div className="flex items-center gap-3">
+          {loadingCSV ? (
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          ) : (
+            <Table className="h-4 w-4 text-primary" />
+          )}
+          <span className="text-sm font-semibold">{loadingCSV ? 'Generating...' : 'Wall Schedule (CSV)'}</span>
         </div>
-        {!loadingCSV && <Download className="ml-auto h-4 w-4" />}
+        {!loadingCSV && <Download className="h-4 w-4" />}
       </Button>
     </div>
   );
