@@ -116,7 +116,7 @@ const MapCanvas = ({
     toast('Wall deleted', { description: `${name} has been removed` });
   };
 
-  const undoLastPoint = () => setCurrentPoints((prev) => prev.slice(0, -1));
+  const undoLastPoint = () => onCurrentPointsChange((prev) => prev.slice(0, -1));
 
   if (!isLoaded) {
     return (
