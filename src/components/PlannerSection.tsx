@@ -150,8 +150,7 @@ const PlannerSection = () => {
     if (prev >= 0) setStep(prev);
   };
 
-  // Email validation
-  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
+  // Email validation (defined above with other validations)
 
   return (
     <section id="planner" className="bg-background pb-20">
