@@ -23,7 +23,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
     setLoadingSitePlan(true);
     toast.loading('Generating site plan...', { id: 'site-plan' });
     try {
-      await generateEngineeringSitePlan(project, mapboxToken, branding);
+      await generateEngineeringSitePlan(project, googleMapsApiKey, branding);
       toast.success('Site plan downloaded', { id: 'site-plan', description: 'A3 landscape PDF with wall layout' });
     } catch {
       toast.error('Failed to generate site plan', { id: 'site-plan' });
