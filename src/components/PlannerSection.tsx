@@ -435,7 +435,7 @@ const PlannerSection = () => {
 
                     {project.isPaid && (
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                        <ExportGenerator project={project} mapboxToken={MAPBOX_TOKEN} />
+                        <ExportGenerator project={project} googleMapsApiKey={GOOGLE_MAPS_API_KEY} />
                       </motion.div>
                     )}
                   </div>
