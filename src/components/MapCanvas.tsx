@@ -254,31 +254,6 @@ const MapCanvas = ({
         </div>
       </div>
 
-      {/* Drawing controls */}
-      {center && (
-        <div className="absolute right-3 top-3 flex flex-col gap-2 sm:right-4 sm:top-4">
-          {!isDrawing ? (
-            <Button onClick={() => setIsDrawing(true)} size="sm" className="gap-2 rounded-lg shadow-card">
-              <Pencil className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Draw Wall</span>
-              <span className="sm:hidden">Draw</span>
-            </Button>
-          ) : (
-            <>
-              <Button onClick={finishWall} size="sm" className="gap-2 rounded-lg shadow-card">
-                Finish Wall
-              </Button>
-              <Button onClick={undoLastPoint} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card" disabled={currentPoints.length === 0}>
-                <Undo2 className="h-3.5 w-3.5" /> Undo
-              </Button>
-              <Button onClick={() => { setCurrentPoints([]); setIsDrawing(false); }} size="sm" variant="outline" className="gap-2 rounded-lg bg-card shadow-card">
-                Cancel
-              </Button>
-            </>
-          )}
-        </div>
-      )}
-
       {/* Drawing instructions */}
       {isDrawing && (
         <div className="absolute bottom-3 left-1/2 max-w-[calc(100%-6rem)] -translate-x-1/2 rounded-xl bg-card px-3 py-2 shadow-elevated sm:bottom-4 sm:max-w-none sm:px-4 sm:py-2.5">
