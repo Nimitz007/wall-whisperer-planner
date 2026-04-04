@@ -74,6 +74,15 @@ const MapCanvas = ({
 
   const confirmDeleteWall = (wall: WallSegment) => setWallToDelete(wall);
 
+  const deleteWall = () => {
+    if (!wallToDelete) return;
+    const name = wallToDelete.name;
+    onWallsChange(walls.filter((w) => w.id !== wallToDelete.id));
+    if (activeWallId === wallToDelete.id) onActiveWallChange(null);
+    setWallToDelete(null);
+    toast('Wall deleted', { description: `${name} has been removed` });
+  };
+
   if (!isLoaded) {
     return (
       <div className="flex h-[400px] items-center justify-center rounded-2xl border border-border bg-card shadow-card lg:h-[700px]">
