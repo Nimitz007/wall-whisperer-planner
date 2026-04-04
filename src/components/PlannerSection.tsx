@@ -127,7 +127,10 @@ const PlannerSection = () => {
 
   const handleStepClick = (step: number) => {
     if (isStepAccessible(step)) {
+      setTriedNext(false);
       setStep(step);
+    } else if (step > project.currentStep) {
+      setTriedNext(true);
     }
   };
 
