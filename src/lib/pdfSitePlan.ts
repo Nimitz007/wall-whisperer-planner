@@ -789,6 +789,7 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
   project.walls.forEach((wall, idx) => {
     doc.addPage([420, 297], 'landscape');
     drawBorder(doc);
+    drawWatermark(doc);
 
     // Note boxes - right-aligned near title block
     const tbX2 = A3_W - BORDER_INNER - TB_WIDTH;
