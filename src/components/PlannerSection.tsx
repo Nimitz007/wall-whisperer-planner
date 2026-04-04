@@ -61,6 +61,7 @@ const PlannerSection = () => {
   const [activeWallId, setActiveWallId] = useState<string | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
+  const [triedNext, setTriedNext] = useState(false);
   const mapCenter =
     project.details.lat && project.details.lng
       ? ([project.details.lng, project.details.lat] as [number, number])
@@ -126,13 +127,21 @@ const PlannerSection = () => {
 
   const handleStepClick = (step: number) => {
     if (isStepAccessible(step)) {
+      setTriedNext(false);
       setStep(step);
+    } else if (step > project.currentStep) {
+      setTriedNext(true);
     }
   };
 
   const goNext = () => {
     const next = project.currentStep + 1;
-    if (next < STEPS.length && isStepAccessible(next)) setStep(next);
+    if (next < STEPS.length && isStepAccessible(next)) {
+      setTriedNext(false);
+      setStep(next);
+    } else {
+      setTriedNext(true);
+    }
   };
 
   const goBack = () => {
@@ -141,7 +150,7 @@ const PlannerSection = () => {
   };
 
   // Email validation
-  const isEmailValid = !project.details.clientEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(project.details.clientEmail);
 
   return (
     <section id="planner" className="bg-background pb-20">
@@ -249,10 +258,10 @@ const PlannerSection = () => {
                           value={project.details.clientName}
                           onChange={(e) => updateDetails({ clientName: e.target.value })}
                           placeholder="Full Name"
-                          className={`rounded-lg ${project.details.clientName.trim().length > 0 && !isFullName ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${triedNext && !isFullName ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
-                        {project.details.clientName.trim().length > 0 && !isFullName && (
+                        {triedNext && !isFullName && (
                           <p className="text-xs text-destructive">Please enter first and last name</p>
                         )}
                       </div>
@@ -263,10 +272,10 @@ const PlannerSection = () => {
                           value={project.details.clientEmail}
                           onChange={(e) => updateDetails({ clientEmail: e.target.value })}
                           placeholder="email@example.com"
-                          className={`rounded-lg ${!isEmailValid && project.details.clientEmail.length > 0 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${triedNext && !isEmailValid ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                         />
-                        {!isEmailValid && project.details.clientEmail.length > 0 && (
+                        {triedNext && !isEmailValid && (
                           <p className="text-xs text-destructive">Please enter a valid email address</p>
                         )}
                       </div>
@@ -277,11 +286,11 @@ const PlannerSection = () => {
                           value={project.details.clientPhone}
                           onChange={(e) => updateDetails({ clientPhone: e.target.value })}
                           placeholder="04XX XXX XXX"
-                          className={`rounded-lg ${project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                          className={`rounded-lg ${triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 ? "border-destructive focus-visible:ring-destructive" : ""}`}
                           required
                           maxLength={14}
                         />
-                        {project.details.clientPhone.length > 0 && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
+                        {triedNext && project.details.clientPhone.replace(/\D/g, '').length !== 10 && (
                           <p className="text-xs text-destructive">Phone must be exactly 10 digits</p>
                         )}
                       </div>
