@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, Marker, InfoWindow } from '@react-google-maps/api';
 import { WallPoint, WallSegment } from '@/lib/types';
 import { calculatePolylineLength } from '@/lib/wallCalculations';
@@ -14,12 +14,84 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
 type MapTypeId = 'satellite' | 'hybrid';
 
 const containerStyle = { width: '100%', height: '100%' };
+
+const LIME_GREEN = '#33E65D';
+const LIME_GREEN_DARK = '#2bc950';
+const SNAP_THRESHOLD_PX = 15; // pixels for snap detection
+
+/** Calculate angle (degrees) between two vectors meeting at a point */
+function angleBetweenWalls(
+  shared: WallPoint,
+  endA: WallPoint,
+  endB: WallPoint
+): number {
+  const dAx = endA.lng - shared.lng;
+  const dAy = endA.lat - shared.lat;
+  const dBx = endB.lng - shared.lng;
+  const dBy = endB.lat - shared.lat;
+  const angleA = Math.atan2(dAy, dAx);
+  const angleB = Math.atan2(dBy, dBx);
+  let angle = Math.abs((angleA - angleB) * (180 / Math.PI));
+  if (angle > 180) angle = 360 - angle;
+  return angle;
+}
+
+/** Find all endpoints of existing walls */
+function getEndpoints(walls: WallSegment[]): { wallId: string; pointIndex: number; point: WallPoint }[] {
+  const endpoints: { wallId: string; pointIndex: number; point: WallPoint }[] = [];
+  walls.forEach((wall) => {
+    if (wall.points.length >= 2) {
+      endpoints.push({ wallId: wall.id, pointIndex: 0, point: wall.points[0] });
+      endpoints.push({ wallId: wall.id, pointIndex: wall.points.length - 1, point: wall.points[wall.points.length - 1] });
+    }
+  });
+  return endpoints;
+}
+
+/** Find connected wall pairs and their angles */
+function findWallAngles(walls: WallSegment[]): { position: WallPoint; angle: number; wallNames: [string, string] }[] {
+  const results: { position: WallPoint; angle: number; wallNames: [string, string] }[] = [];
+  const threshold = 0.000005; // ~0.5m at equator
+
+  for (let i = 0; i < walls.length; i++) {
+    for (let j = i + 1; j < walls.length; j++) {
+      const wA = walls[i];
+      const wB = walls[j];
+      if (wA.points.length < 2 || wB.points.length < 2) continue;
+
+      const endpointsA = [
+        { pt: wA.points[0], other: wA.points[1] },
+        { pt: wA.points[wA.points.length - 1], other: wA.points[wA.points.length - 2] },
+      ];
+      const endpointsB = [
+        { pt: wB.points[0], other: wB.points[1] },
+        { pt: wB.points[wB.points.length - 1], other: wB.points[wB.points.length - 2] },
+      ];
+
+      for (const eA of endpointsA) {
+        for (const eB of endpointsB) {
+          if (
+            Math.abs(eA.pt.lat - eB.pt.lat) < threshold &&
+            Math.abs(eA.pt.lng - eB.pt.lng) < threshold
+          ) {
+            const angle = angleBetweenWalls(eA.pt, eA.other, eB.other);
+            results.push({
+              position: eA.pt,
+              angle,
+              wallNames: [wA.name, wB.name],
+            });
+          }
+        }
+      }
+    }
+  }
+  return results;
+}
 
 const MapCanvas = ({
   center,
@@ -32,7 +104,7 @@ const MapCanvas = ({
   currentPoints,
   onCurrentPointsChange,
 }: {
-  center: [number, number] | null; // [lng, lat]
+  center: [number, number] | null;
   walls: WallSegment[];
   onWallsChange: (walls: WallSegment[]) => void;
   activeWallId: string | null;
@@ -45,6 +117,7 @@ const MapCanvas = ({
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<MapTypeId>('hybrid');
   const [wallToDelete, setWallToDelete] = useState<WallSegment | null>(null);
+  const [snapTarget, setSnapTarget] = useState<WallPoint | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -71,13 +144,107 @@ const MapCanvas = ({
     }
   }, [mapType]);
 
+  // Set crosshair cursor when drawing
+  useEffect(() => {
+    if (!mapRef.current) return;
+    const mapDiv = mapRef.current.getDiv();
+    if (isDrawing) {
+      mapDiv.style.cursor = 'crosshair';
+      // Also override the inner map container
+      const inner = mapDiv.querySelector('div[style]') as HTMLElement;
+      if (inner) inner.style.cursor = 'crosshair';
+    } else {
+      mapDiv.style.cursor = '';
+      const inner = mapDiv.querySelector('div[style]') as HTMLElement;
+      if (inner) inner.style.cursor = '';
+    }
+  }, [isDrawing]);
+
+  // Find nearest endpoint for snapping
+  const findSnapPoint = useCallback(
+    (latLng: google.maps.LatLng): WallPoint | null => {
+      if (!mapRef.current) return null;
+      const endpoints = getEndpoints(walls);
+      const projection = mapRef.current.getProjection();
+      if (!projection) return null;
+
+      const clickPixel = projection.fromLatLngToPoint(latLng);
+      if (!clickPixel) return null;
+
+      const zoom = mapRef.current.getZoom() ?? 20;
+      const scale = Math.pow(2, zoom);
+
+      let nearest: WallPoint | null = null;
+      let nearestDist = Infinity;
+
+      for (const ep of endpoints) {
+        const epLatLng = new google.maps.LatLng(ep.point.lat, ep.point.lng);
+        const epPixel = projection.fromLatLngToPoint(epLatLng);
+        if (!epPixel) continue;
+
+        const dx = (clickPixel.x - epPixel.x) * scale;
+        const dy = (clickPixel.y - epPixel.y) * scale;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < SNAP_THRESHOLD_PX && dist < nearestDist) {
+          nearestDist = dist;
+          nearest = ep.point;
+        }
+      }
+      return nearest;
+    },
+    [walls]
+  );
+
   const handleMapClick = useCallback(
     (e: google.maps.MapMouseEvent) => {
       if (!isDrawing || !e.latLng) return;
-      const point: WallPoint = { lng: e.latLng.lng(), lat: e.latLng.lat() };
+
+      // Try to snap to an existing wall endpoint
+      const snapped = findSnapPoint(e.latLng);
+      const point: WallPoint = snapped
+        ? { lng: snapped.lng, lat: snapped.lat }
+        : { lng: e.latLng.lng(), lat: e.latLng.lat() };
+
+      if (snapped) {
+        setSnapTarget(snapped);
+        setTimeout(() => setSnapTarget(null), 1500);
+        toast.info('Snapped to wall endpoint', { duration: 1500 });
+      }
+
       onCurrentPointsChange((prev) => [...prev, point]);
     },
-    [isDrawing, onCurrentPointsChange]
+    [isDrawing, onCurrentPointsChange, findSnapPoint]
+  );
+
+  // Handle dragging a node on an existing wall
+  const handleNodeDragEnd = useCallback(
+    (wallId: string, pointIndex: number, newPos: google.maps.LatLng) => {
+      const updatedWalls = walls.map((wall) => {
+        if (wall.id !== wallId) return wall;
+        const newPoints = [...wall.points];
+        newPoints[pointIndex] = { lat: newPos.lat(), lng: newPos.lng() };
+        return {
+          ...wall,
+          points: newPoints,
+          length: calculatePolylineLength(newPoints),
+        };
+      });
+      onWallsChange(updatedWalls);
+    },
+    [walls, onWallsChange]
+  );
+
+  // Handle dragging a node being drawn
+  const handleDrawNodeDragEnd = useCallback(
+    (pointIndex: number, newPos: google.maps.LatLng) => {
+      onCurrentPointsChange((prev) => {
+        const updated = [...prev];
+        updated[pointIndex] = { lat: newPos.lat(), lng: newPos.lng() };
+        return updated;
+      });
+    },
+    [onCurrentPointsChange]
   );
 
   const confirmDeleteWall = (wall: WallSegment) => setWallToDelete(wall);
@@ -90,6 +257,12 @@ const MapCanvas = ({
     setWallToDelete(null);
     toast('Wall deleted', { description: `${name} has been removed` });
   };
+
+  // Calculate angles between connected walls
+  const wallAngles = useMemo(() => findWallAngles(walls), [walls]);
+
+  // Endpoint markers for snap hints when drawing
+  const endpoints = useMemo(() => (isDrawing ? getEndpoints(walls) : []), [isDrawing, walls]);
 
   if (!isLoaded) {
     return (
@@ -124,6 +297,8 @@ const MapCanvas = ({
             scaleControl: true,
             gestureHandling: 'greedy',
             tilt: 0,
+            draggableCursor: isDrawing ? 'crosshair' : undefined,
+            draggingCursor: isDrawing ? 'crosshair' : undefined,
           }}
         >
           {/* Existing walls */}
@@ -135,22 +310,26 @@ const MapCanvas = ({
                 <Polyline
                   path={path}
                   options={{
-                    strokeColor: isActive ? '#2d6a4f' : '#52796f',
+                    strokeColor: isActive ? LIME_GREEN : LIME_GREEN_DARK,
                     strokeWeight: isActive ? 4 : 3,
                     strokeOpacity: 1,
                     clickable: true,
                   }}
                   onClick={() => onActiveWallChange(wall.id)}
                 />
-                {/* Node markers */}
+                {/* Node markers — draggable */}
                 {wall.points.map((p, i) => (
                   <Marker
                     key={`${wall.id}-node-${i}`}
                     position={{ lat: p.lat, lng: p.lng }}
+                    draggable
+                    onDragEnd={(e) => {
+                      if (e.latLng) handleNodeDragEnd(wall.id, i, e.latLng);
+                    }}
                     icon={{
                       path: google.maps.SymbolPath.CIRCLE,
-                      scale: 5,
-                      fillColor: isActive ? '#2d6a4f' : '#52796f',
+                      scale: 6,
+                      fillColor: LIME_GREEN,
                       fillOpacity: 1,
                       strokeColor: '#fff',
                       strokeWeight: 2,
@@ -166,7 +345,7 @@ const MapCanvas = ({
                     })()}
                     options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -15) }}
                   >
-                    <div style={{ padding: '2px 6px', fontSize: '12px', fontWeight: 600, color: '#2d6a4f', whiteSpace: 'nowrap' }}>
+                    <div style={{ padding: '2px 6px', fontSize: '12px', fontWeight: 600, color: LIME_GREEN_DARK, whiteSpace: 'nowrap' }}>
                       {wall.name}: {wall.length.toFixed(1)}m
                     </div>
                   </InfoWindow>
@@ -175,21 +354,79 @@ const MapCanvas = ({
             );
           })}
 
+          {/* Snap hint markers — show existing endpoints as pulsing targets when drawing */}
+          {endpoints.map((ep, i) => (
+            <Marker
+              key={`snap-hint-${i}`}
+              position={{ lat: ep.point.lat, lng: ep.point.lng }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 10,
+                fillColor: LIME_GREEN,
+                fillOpacity: 0.3,
+                strokeColor: LIME_GREEN,
+                strokeWeight: 2,
+              }}
+              clickable={false}
+            />
+          ))}
+
+          {/* Snap feedback */}
+          {snapTarget && (
+            <Marker
+              position={{ lat: snapTarget.lat, lng: snapTarget.lng }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 14,
+                fillColor: LIME_GREEN,
+                fillOpacity: 0.4,
+                strokeColor: '#fff',
+                strokeWeight: 3,
+              }}
+              clickable={false}
+            />
+          )}
+
+          {/* Angle labels between connected walls */}
+          {wallAngles.map((wa, i) => (
+            <InfoWindow
+              key={`angle-${i}`}
+              position={{ lat: wa.position.lat, lng: wa.position.lng }}
+              options={{ disableAutoPan: true, pixelOffset: new google.maps.Size(0, -25) }}
+            >
+              <div style={{
+                padding: '2px 6px',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#fff',
+                background: 'rgba(0,0,0,0.7)',
+                borderRadius: '4px',
+                whiteSpace: 'nowrap',
+              }}>
+                {wa.angle.toFixed(1)}°
+              </div>
+            </InfoWindow>
+          ))}
+
           {/* Currently drawing polyline */}
           {currentPoints.length >= 2 && (
             <Polyline
               path={currentPoints.map((p) => ({ lat: p.lat, lng: p.lng }))}
-              options={{ strokeColor: '#2d6a4f', strokeWeight: 3, strokeOpacity: 0.6 }}
+              options={{ strokeColor: LIME_GREEN, strokeWeight: 3, strokeOpacity: 0.8 }}
             />
           )}
           {currentPoints.map((p, i) => (
             <Marker
               key={`draw-${i}`}
               position={{ lat: p.lat, lng: p.lng }}
+              draggable
+              onDragEnd={(e) => {
+                if (e.latLng) handleDrawNodeDragEnd(i, e.latLng);
+              }}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 5,
-                fillColor: '#2d6a4f',
+                scale: 6,
+                fillColor: LIME_GREEN,
                 fillOpacity: 1,
                 strokeColor: '#fff',
                 strokeWeight: 2,
@@ -231,9 +468,9 @@ const MapCanvas = ({
       {isDrawing && (
         <div className="absolute bottom-3 left-1/2 max-w-[calc(100%-6rem)] -translate-x-1/2 rounded-xl bg-card px-3 py-2 shadow-elevated sm:bottom-4 sm:max-w-none sm:px-4 sm:py-2.5">
           <p className="text-center text-xs font-medium text-foreground sm:text-sm">
-            Click on the map to place wall points.{' '}
+            Click on the map to place wall points. Snap to existing endpoints for connected walls.{' '}
             {currentPoints.length >= 2 && (
-              <span className="text-primary">
+              <span style={{ color: LIME_GREEN }}>
                 Length: {calculatePolylineLength(currentPoints).toFixed(1)}m — Click "Finish Wall" when done.
               </span>
             )}
