@@ -76,7 +76,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
         doc.setFont('helvetica', 'bold');
         doc.text(`${wall.name} — ${WALL_TYPE_LABELS[wall.wallType]}`, 15, y); y += 5;
         doc.setFont('helvetica', 'normal');
-        doc.text(`Length: ${wall.length.toFixed(1)}m | Avg Height: ${wall.averageHeight}m | Max Height: ${wall.maxHeight}m`, 20, y); y += 5;
+        doc.text(`Length: ${wall.length.toFixed(1)}m | Min Height: ${wall.minHeight}m | Max Height: ${wall.maxHeight}m`, 20, y); y += 5;
         doc.text(`Offset from dwelling: ${wall.offsetFromDwelling}m (approx) | Offset from boundary: ${wall.offsetFromBoundary}m (approx)`, 20, y); y += 5;
         doc.text(`Surcharge: ${wall.hasSurcharge ? 'Yes' : 'No'} | Fence above: ${wall.hasFenceAbove ? 'Yes' : 'No'} | Drainage: ${wall.hasDrainageRequired ? 'Yes' : 'No'}`, 20, y); y += 5;
         if (wall.notes) { doc.text(`Notes: ${wall.notes}`, 20, y); y += 5; }
