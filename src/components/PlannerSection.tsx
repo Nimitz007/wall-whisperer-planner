@@ -273,6 +273,9 @@ const PlannerSection = () => {
                           className="rounded-lg"
                           required
                         />
+                        {project.details.clientPhone.trim().length < 8 && (
+                          <p className="text-xs text-muted-foreground">Required to proceed (min 8 digits)</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-sm">Project Reference</Label>
