@@ -15,8 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { MapPin, Pencil, Settings, Compass, BarChart3, CreditCard, User, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoidXBsaWZ0YmEiLCJhIjoiY21rMHA3MXc2NzdnbTNjcTJzd2R1aW9jOCJ9.AbKUSzkWQp2MKowmen69LA";
-// Replace with your actual Mapbox public token
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 
 const STEPS = [
   { label: "Property", icon: MapPin },
@@ -139,7 +138,6 @@ const PlannerSection = () => {
         {/* Address search */}
         <div className="mx-auto max-w-2xl pb-8 pt-6">
           <AddressSearch
-            mapboxToken={MAPBOX_TOKEN}
             onSelect={(result) => {
               updateDetails(result);
               setStep(1);
@@ -155,7 +153,6 @@ const PlannerSection = () => {
           {/* Map */}
           <div className="order-1">
             <MapCanvas
-              mapboxToken={MAPBOX_TOKEN}
               center={mapCenter}
               walls={project.walls}
               onWallsChange={updateWalls}
@@ -438,7 +435,7 @@ const PlannerSection = () => {
 
                     {project.isPaid && (
                       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                        <ExportGenerator project={project} mapboxToken={MAPBOX_TOKEN} />
+                        <ExportGenerator project={project} googleMapsApiKey={GOOGLE_MAPS_API_KEY} />
                       </motion.div>
                     )}
                   </div>

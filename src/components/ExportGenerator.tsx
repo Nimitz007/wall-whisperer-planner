@@ -10,10 +10,10 @@ import { useBranding } from '@/contexts/BrandingContext';
 
 interface ExportGeneratorProps {
   project: ProjectState;
-  mapboxToken?: string;
+  googleMapsApiKey?: string;
 }
 
-const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
+const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) => {
   const branding = useBranding();
   const [loadingSitePlan, setLoadingSitePlan] = useState(false);
   const [loadingSummary, setLoadingSummary] = useState(false);
@@ -23,14 +23,14 @@ const ExportGenerator = ({ project, mapboxToken }: ExportGeneratorProps) => {
     setLoadingSitePlan(true);
     toast.loading('Generating site plan...', { id: 'site-plan' });
     try {
-      await generateEngineeringSitePlan(project, mapboxToken, branding);
+      await generateEngineeringSitePlan(project, googleMapsApiKey, branding);
       toast.success('Site plan downloaded', { id: 'site-plan', description: 'A3 landscape PDF with wall layout' });
     } catch {
       toast.error('Failed to generate site plan', { id: 'site-plan' });
     } finally {
       setLoadingSitePlan(false);
     }
-  }, [project, mapboxToken, branding]);
+  }, [project, googleMapsApiKey, branding]);
 
   const generatePDFSummary = useCallback(() => {
     setLoadingSummary(true);
