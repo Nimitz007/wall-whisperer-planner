@@ -121,7 +121,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       let dy = 42;
       disclaimer.forEach(line => { doc.text(line, 15, dy); dy += 7; });
 
-      doc.save(`project-summary-${project.details.projectReference || 'export'}.pdf`);
+      doc.save(`project-summary-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.pdf`);
       toast.success('Summary downloaded', { id: 'summary', description: 'Project summary PDF' });
     } catch {
       toast.error('Failed to generate summary', { id: 'summary' });
