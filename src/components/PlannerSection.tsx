@@ -418,18 +418,17 @@ const PlannerSection = () => {
                               <div>
                                 <span className="font-medium">{wall.name}</span>
                                 <span className="ml-2 opacity-70">{wall.length.toFixed(1)}m</span>
-                                {wall.averageHeight > 0 && (
-                                  <span className="ml-2 opacity-70">· avg {wall.averageHeight}m</span>
-                                )}
                               </div>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); deleteWall(wall.id); }}
-                                className="opacity-60 hover:opacity-100"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); deleteWall(wall.id); }}
+                                  className="opacity-60 hover:opacity-100"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                                <ChevronRight className={`h-4 w-4 opacity-60 transition-transform ${activeWallId === wall.id ? 'rotate-90' : ''}`} />
+                              </div>
                             </div>
-                            {/* Inline wall editor */}
                             {activeWallId === wall.id && (
                               <div className="mt-2 rounded-lg border border-border bg-card p-4">
                                 <WallEditorPanel wall={wall} onChange={updateWall} />
