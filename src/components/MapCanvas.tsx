@@ -113,6 +113,8 @@ const MapCanvas = ({
   const [snapTarget, setSnapTarget] = useState<WallPoint | null>(null);
   const [heightPrompt, setHeightPrompt] = useState<{ point: WallPoint; index: number } | null>(null);
   const [heightInput, setHeightInput] = useState('');
+  const [selectedNode, setSelectedNode] = useState<{ wallId: string; pointIndex: number } | null>(null);
+  const [editHeightInput, setEditHeightInput] = useState('');
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
