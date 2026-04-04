@@ -145,7 +145,7 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `wall-schedule-${project.details.projectReference || 'export'}.csv`;
+      a.download = `wall-schedule-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('CSV downloaded', { description: 'Wall schedule spreadsheet' });

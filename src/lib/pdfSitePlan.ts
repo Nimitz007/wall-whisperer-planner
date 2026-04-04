@@ -702,5 +702,5 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     drawDisclaimer(doc, w, h, branding);
   }
 
-  doc.save(`concept-site-plan-${project.details.projectReference || 'export'}.pdf`);
+  doc.save(`concept-site-plan-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.pdf`);
 }
