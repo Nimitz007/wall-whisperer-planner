@@ -133,7 +133,12 @@ const PlannerSection = () => {
 
   const goNext = () => {
     const next = project.currentStep + 1;
-    if (next < STEPS.length && isStepAccessible(next)) setStep(next);
+    if (next < STEPS.length && isStepAccessible(next)) {
+      setTriedNext(false);
+      setStep(next);
+    } else {
+      setTriedNext(true);
+    }
   };
 
   const goBack = () => {
