@@ -38,7 +38,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
-  const [mapStyle, setMapStyle] = useState<MapStyle>('streets');
+  const [mapStyle, setMapStyle] = useState<MapStyle>('satellite');
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
   const [wallToDelete, setWallToDelete] = useState<WallSegment | null>(null);
@@ -52,7 +52,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
       container: mapContainer.current,
       style: MAP_STYLES[mapStyle],
       center: center || [133.7751, -25.2744], // Australia center
-      zoom: center ? 18 : 4,
+      zoom: center ? 20 : 4,
       pitch: 0,
       bearing: 0,
     });
@@ -71,7 +71,7 @@ const MapCanvas = ({ mapboxToken, center, walls, onWallsChange, activeWallId, on
   // Fly to center when it changes
   useEffect(() => {
     if (mapRef.current && center) {
-      mapRef.current.flyTo({ center, zoom: 18, duration: 2000 });
+      mapRef.current.flyTo({ center, zoom: 20, duration: 2000 });
     }
   }, [center]);
 
