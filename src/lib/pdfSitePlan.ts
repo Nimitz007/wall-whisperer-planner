@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { ProjectState, WallSegment } from '@/lib/types';
 import { calculateDistance } from '@/lib/wallCalculations';
 import { BrandingConfig } from '@/lib/branding';
+import { fetchElevations, ElevationResult } from '@/lib/elevationService';
 
 // ─── COLOUR PALETTE ────────────────────────────────────────
 type RGB = [number, number, number];
@@ -310,6 +311,15 @@ function drawLegend(doc: jsPDF, x: number, y: number) {
   doc.setFont(FONT, 'bold');
   doc.text('LS', x + 7, ly + 1); doc.setFont(FONT, 'normal'); doc.text('LOW SIDE.', x + 22, ly + 1);
 
+  // AHD elevation label
+  ly += 8;
+  doc.setFillColor(...C.white); doc.setDrawColor(...C.black); doc.setLineWidth(0.15);
+  doc.rect(x + 2, ly - 2, 16, 4, 'FD');
+  doc.setFontSize(3.5); doc.setFont(FONT, 'normal');
+  doc.text('RL 45.20', x + 10, ly + 0.5, { align: 'center' });
+  doc.setFontSize(5);
+  doc.text('GROUND ELEVATION (AHD) AT WALL NODE.', x + 22, ly + 1);
+
   // Elevation marker in legend
   ly += 8;
   const eCircR = 4;
@@ -378,7 +388,7 @@ function drawElevationMarker(doc: jsPDF, cx: number, cy: number, letter: string,
 }
 
 // ─── WALLS ON PLAN ────────────────────────────────────────
-function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawArea, elevSheetStart: number) {
+function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawArea, elevSheetStart: number, nodeElevations?: Map<string, number>) {
   walls.forEach((wall, wallIdx) => {
     if (wall.points.length < 2) return;
 
@@ -417,6 +427,19 @@ function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawAr
         doc.text(ht.toFixed(1), x, y - 5, { align: 'center' });
       } else {
         doc.setFillColor(...C.black); doc.circle(x, y, 0.8, 'F');
+      }
+
+      // AHD ground elevation label
+      const elevKey = `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+      const ahd = nodeElevations?.get(elevKey);
+      if (ahd !== undefined) {
+        doc.setFillColor(...C.white);
+        const rlText = `RL ${ahd.toFixed(2)}`;
+        const tw = doc.getTextWidth(rlText) + 2;
+        const rlY = y + 4;
+        doc.rect(x - tw / 2, rlY - 2, tw, 3.5, 'F');
+        doc.setFontSize(3.5); doc.setFont(FONT, 'normal'); doc.setTextColor(...C.black);
+        doc.text(rlText, x, rlY + 0.5, { align: 'center' });
       }
     });
 
@@ -754,7 +777,20 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
       } catch { /* proceed without */ }
     }
 
-    drawWallsOnPlan(doc, project.walls, bbox, planArea, 2);
+    // Fetch AHD elevations for all wall nodes
+    let nodeElevations: Map<string, number> | undefined;
+    try {
+      const allPoints = project.walls.flatMap(w => w.points.map(p => ({ lat: p.lat, lng: p.lng })));
+      if (allPoints.length > 0) {
+        const elevResults = await fetchElevations(allPoints);
+        nodeElevations = new Map<string, number>();
+        elevResults.forEach(r => {
+          nodeElevations!.set(`${r.lat.toFixed(6)},${r.lng.toFixed(6)}`, r.elevation);
+        });
+      }
+    } catch { /* proceed without elevations */ }
+
+    drawWallsOnPlan(doc, project.walls, bbox, planArea, 2, nodeElevations);
 
     // North arrow
     drawNorthArrow(doc, BORDER_INNER + 20, BORDER_INNER + 22);
