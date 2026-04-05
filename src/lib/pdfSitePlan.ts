@@ -379,7 +379,7 @@ function drawElevationMarker(doc: jsPDF, cx: number, cy: number, letter: string,
 }
 
 // ─── WALLS ON PLAN ────────────────────────────────────────
-function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawArea, elevSheetStart: number) {
+function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawArea, elevSheetStart: number, nodeElevations?: Map<string, number>) {
   walls.forEach((wall, wallIdx) => {
     if (wall.points.length < 2) return;
 
