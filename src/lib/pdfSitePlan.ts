@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { ProjectState, WallSegment } from '@/lib/types';
 import { calculateDistance } from '@/lib/wallCalculations';
 import { BrandingConfig } from '@/lib/branding';
+import { fetchElevations, ElevationResult } from '@/lib/elevationService';
 
 // ─── COLOUR PALETTE ────────────────────────────────────────
 type RGB = [number, number, number];
