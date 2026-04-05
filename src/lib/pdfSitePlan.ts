@@ -311,6 +311,15 @@ function drawLegend(doc: jsPDF, x: number, y: number) {
   doc.setFont(FONT, 'bold');
   doc.text('LS', x + 7, ly + 1); doc.setFont(FONT, 'normal'); doc.text('LOW SIDE.', x + 22, ly + 1);
 
+  // AHD elevation label
+  ly += 8;
+  doc.setFillColor(...C.white); doc.setDrawColor(...C.black); doc.setLineWidth(0.15);
+  doc.rect(x + 2, ly - 2, 16, 4, 'FD');
+  doc.setFontSize(3.5); doc.setFont(FONT, 'normal');
+  doc.text('RL 45.20', x + 10, ly + 0.5, { align: 'center' });
+  doc.setFontSize(5);
+  doc.text('GROUND ELEVATION (AHD) AT WALL NODE.', x + 22, ly + 1);
+
   // Elevation marker in legend
   ly += 8;
   const eCircR = 4;
