@@ -419,6 +419,19 @@ function drawWallsOnPlan(doc: jsPDF, walls: WallSegment[], bbox: BBox, a: DrawAr
       } else {
         doc.setFillColor(...C.black); doc.circle(x, y, 0.8, 'F');
       }
+
+      // AHD ground elevation label
+      const elevKey = `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+      const ahd = nodeElevations?.get(elevKey);
+      if (ahd !== undefined) {
+        doc.setFillColor(...C.white);
+        const rlText = `RL ${ahd.toFixed(2)}`;
+        const tw = doc.getTextWidth(rlText) + 2;
+        const rlY = y + 4;
+        doc.rect(x - tw / 2, rlY - 2, tw, 3.5, 'F');
+        doc.setFontSize(3.5); doc.setFont(FONT, 'normal'); doc.setTextColor(...C.black);
+        doc.text(rlText, x, rlY + 0.5, { align: 'center' });
+      }
     });
 
     // HS/LS labels
