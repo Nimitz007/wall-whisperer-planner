@@ -768,7 +768,20 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
       } catch { /* proceed without */ }
     }
 
-    drawWallsOnPlan(doc, project.walls, bbox, planArea, 2);
+    // Fetch AHD elevations for all wall nodes
+    let nodeElevations: Map<string, number> | undefined;
+    try {
+      const allPoints = project.walls.flatMap(w => w.points.map(p => ({ lat: p.lat, lng: p.lng })));
+      if (allPoints.length > 0) {
+        const elevResults = await fetchElevations(allPoints);
+        nodeElevations = new Map<string, number>();
+        elevResults.forEach(r => {
+          nodeElevations!.set(`${r.lat.toFixed(6)},${r.lng.toFixed(6)}`, r.elevation);
+        });
+      }
+    } catch { /* proceed without elevations */ }
+
+    drawWallsOnPlan(doc, project.walls, bbox, planArea, 2, nodeElevations);
 
     // North arrow
     drawNorthArrow(doc, BORDER_INNER + 20, BORDER_INNER + 22);
