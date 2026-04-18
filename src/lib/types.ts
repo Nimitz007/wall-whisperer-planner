@@ -84,4 +84,8 @@ export interface MaterialEstimate {
   qtyWithWastage: string;
   category: string;
   assumption: string;
+  unitPrice?: number;
+  totalPrice?: number;
+  iconKey?: string; // e.g. 'sleeper' | 'i-beam' | 'ag-pipe' | 'concrete' | 'aggregate' | 'geofabric' | 'rebar' | 'block' | 'timber' | 'bolt' | 'gabion' | 'formwork' | 'backfill'
+  imageUrl?: string; // optional product photo URL
 }
