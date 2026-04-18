@@ -744,7 +744,12 @@ function drawSteppedElevation(
 }
 
 // ─── MAIN EXPORT ──────────────────────────────────────────
-export async function generateEngineeringSitePlan(project: ProjectState, googleMapsApiKey?: string, branding?: BrandingConfig) {
+export async function generateEngineeringSitePlan(
+  project: ProjectState,
+  googleMapsApiKey?: string,
+  branding?: BrandingConfig,
+  options?: { returnBlob?: boolean },
+): Promise<{ blob: Blob; filename: string } | void> {
   const doc = new jsPDF('landscape', 'mm', 'a3');
   const logoDataUrl = await loadLogoDataUrl();
 
@@ -854,5 +859,9 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
   const fileSource = (project.details.isBuilder && project.details.companyName)
     ? project.details.companyName
     : project.details.clientName;
-  doc.save(`concept-site-plan-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`);
+  const filename = `concept-site-plan-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`;
+  if (options?.returnBlob) {
+    return { blob: doc.output('blob') as Blob, filename };
+  }
+  doc.save(filename);
 }

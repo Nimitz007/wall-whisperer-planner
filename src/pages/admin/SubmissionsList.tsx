@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import KpiDashboard from '@/components/admin/KpiDashboard';
 
 type Row = {
   id: string;
@@ -80,13 +81,20 @@ const SubmissionsList = () => {
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold">Submissions</h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} of {rows.length} leads</p>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">Pipeline at a glance</p>
         </div>
         <Button variant="outline" onClick={exportCsv}><Download className="h-4 w-4 mr-2" /> Export CSV</Button>
+      </div>
+
+      <KpiDashboard />
+
+      <div className="pt-2">
+        <h2 className="text-lg font-semibold">Submissions</h2>
+        <p className="text-sm text-muted-foreground">{filtered.length} of {rows.length} leads</p>
       </div>
 
       <div className="flex gap-3 flex-wrap">

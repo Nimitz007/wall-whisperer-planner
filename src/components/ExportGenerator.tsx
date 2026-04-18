@@ -3,6 +3,7 @@ import jsPDF from 'jspdf';
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
 import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
+import { uploadSubmissionFile } from '@/lib/submissionFiles';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,7 +24,14 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
     setLoadingSitePlan(true);
     toast.loading('Generating site plan...', { id: 'site-plan' });
     try {
-      await generateEngineeringSitePlan(project, googleMapsApiKey, branding);
+      const result = await generateEngineeringSitePlan(project, googleMapsApiKey, branding, { returnBlob: true });
+      if (result) {
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = result.filename; a.click();
+        URL.revokeObjectURL(url);
+        uploadSubmissionFile(result.filename, result.blob, 'application/pdf').catch(() => {});
+      }
       toast.success('Site plan downloaded', { id: 'site-plan', description: 'A3 landscape PDF with wall layout' });
     } catch {
       toast.error('Failed to generate site plan', { id: 'site-plan' });
@@ -136,7 +144,13 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const fileSource = (project.details.isBuilder && project.details.companyName)
         ? project.details.companyName
         : project.details.clientName;
-      doc.save(`project-summary-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`);
+      const summaryName = `project-summary-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`;
+      const summaryBlob = doc.output('blob') as Blob;
+      const sUrl = URL.createObjectURL(summaryBlob);
+      const sa = document.createElement('a');
+      sa.href = sUrl; sa.download = summaryName; sa.click();
+      URL.revokeObjectURL(sUrl);
+      uploadSubmissionFile(summaryName, summaryBlob, 'application/pdf').catch(() => {});
       toast.success('Summary downloaded', { id: 'summary', description: 'Project summary PDF' });
     } catch {
       toast.error('Failed to generate summary', { id: 'summary' });
@@ -172,9 +186,11 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const csvSource = (project.details.isBuilder && project.details.companyName)
         ? project.details.companyName
         : project.details.clientName;
-      a.download = `material-takeoff-${csvSource?.replace(/\s+/g, '-') || 'export'}.csv`;
+      const csvName = `material-takeoff-${csvSource?.replace(/\s+/g, '-') || 'export'}.csv`;
+      a.download = csvName;
       a.click();
       URL.revokeObjectURL(url);
+      uploadSubmissionFile(csvName, blob, 'text/csv').catch(() => {});
       toast.success('CSV downloaded');
     } catch {
       toast.error('Failed to generate CSV');
