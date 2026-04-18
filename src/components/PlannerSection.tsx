@@ -9,6 +9,7 @@ import PaymentGate from "./PaymentGate";
 import ExportGenerator from "./ExportGenerator";
 import { ProjectState, WallSegment, WallPoint } from "@/lib/types";
 import { calculatePolylineLength, generateWallName } from "@/lib/wallCalculations";
+import { useAutoSaveSubmission } from "@/hooks/useAutoSaveSubmission";
 import { v4Fallback } from "@/lib/idUtils";
 import { Input } from "@/components/ui/input";
 import { FloatingInput } from "@/components/ui/floating-input";
@@ -58,6 +59,7 @@ const PlannerSection = () => {
   });
 
   const [activeWallId, setActiveWallId] = useState<string | null>(null);
+  useAutoSaveSubmission(project);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
   const [triedNext, setTriedNext] = useState(false);
