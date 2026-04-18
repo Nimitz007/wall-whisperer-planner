@@ -38,6 +38,9 @@ export interface WallSegment {
   onBoundary: boolean;
   notes: string;
   materialAssumptions: string;
+  selectedProductSku?: string;
+  selectedProductName?: string;
+  selectedProductPrice?: number;
 }
 
 export interface ProjectDetails {
