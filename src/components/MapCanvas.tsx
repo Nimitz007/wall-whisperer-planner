@@ -404,8 +404,6 @@ const MapCanvas = ({
       <div className="h-[400px] w-full overflow-hidden rounded-2xl shadow-card sm:h-[500px] lg:h-[700px]">
         <GoogleMap
           mapContainerStyle={containerStyle}
-          center={initialCenter}
-          zoom={initialZoom}
           onLoad={onMapLoad}
           onClick={handleMapClick}
           onIdle={handleMapIdle}
