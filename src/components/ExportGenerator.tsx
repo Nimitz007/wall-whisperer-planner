@@ -260,20 +260,27 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
     setLoadingCSV(true);
     try {
       const csvLines: string[] = [];
-      const headers = ['SR', 'Wall', 'Category', 'Description', 'Quantity', 'Wastage %', 'Qty With Wastage', 'Unit', 'Assumption'];
+      const headers = ['SR', 'Wall', 'Category', 'Description', 'Quantity', 'Wastage %', 'Qty With Wastage', 'Unit', 'Unit Price AUD', 'Total AUD', 'Assumption'];
       csvLines.push(headers.map(c => `"${c}"`).join(','));
 
       let sr = 0;
+      let csvGrand = 0;
       project.walls.forEach(wall => {
         const materials = estimateMaterials(wall);
         materials.forEach(m => {
           sr++;
+          if (m.totalPrice !== undefined) csvGrand += m.totalPrice;
           csvLines.push([
             sr.toString(), wall.name, m.category, m.item, m.quantity,
-            m.wastagePercent.toString(), m.qtyWithWastage, m.unit, m.assumption,
-          ].map(c => `"${c}"`).join(','));
+            m.wastagePercent.toString(), m.qtyWithWastage, m.unit,
+            m.unitPrice !== undefined ? m.unitPrice.toFixed(2) : '',
+            m.totalPrice !== undefined ? m.totalPrice.toFixed(2) : '',
+            m.assumption,
+          ].map(c => `"${String(c).replace(/"/g, '""')}"`).join(','));
         });
       });
+      csvLines.push('');
+      csvLines.push(['', '', '', 'PROJECT MATERIALS TOTAL (indicative, excl. labour & GST)', '', '', '', '', '', csvGrand.toFixed(2), ''].map(c => `"${c}"`).join(','));
 
       const csv = csvLines.join('\n');
       const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
