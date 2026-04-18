@@ -4,10 +4,13 @@ import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { getTotalWallLength, estimateMaterials } from '@/lib/wallCalculations';
 import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
 import { uploadSubmissionFile } from '@/lib/submissionFiles';
+import { drawMaterialIcon } from '@/lib/materialIcons';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useBranding } from '@/contexts/BrandingContext';
+
+const fmt = (n: number) => `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface ExportGeneratorProps {
   project: ProjectState;
