@@ -40,6 +40,7 @@ const SubmissionDetail = () => {
   const [newNote, setNewNote] = useState('');
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [filesKey, setFilesKey] = useState(0);
 
   const load = async () => {
     if (!id) return;
