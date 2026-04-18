@@ -103,26 +103,120 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       doc.text(`Total Segments: ${project.walls.length}`, 15, y); y += 5;
       doc.text(`Total Length: ${getTotalWallLength(project.walls).toFixed(1)}m`, 15, y); y += 8;
 
-      project.walls.forEach(wall => {
+      let grandTotal = 0;
+      const colX = { icon: 18, item: 32, qty: 118, unit: 138, unitPrice: 168, total: 195 };
+      const rightMargin = w - 15;
+      const rowH = 11;
+
+      const drawTableHeader = () => {
+        doc.setFillColor(235, 238, 242);
+        doc.rect(15, y, rightMargin - 15, 7, 'F');
         doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(40);
+        doc.text('Item', colX.item, y + 4.8);
+        doc.text('Qty', colX.qty, y + 4.8, { align: 'right' });
+        doc.text('Unit', colX.unit, y + 4.8);
+        doc.text('Unit Price', colX.unitPrice, y + 4.8, { align: 'right' });
+        doc.text('Total', colX.total, y + 4.8, { align: 'right' });
+        y += 9;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8.5);
+      };
+
+      const ensureSpace = (needed: number) => {
+        if (y + needed > 275) {
+          doc.addPage();
+          addWatermark();
+          y = 20;
+        }
+      };
+
+      project.walls.forEach((wall, wIdx) => {
+        ensureSpace(30);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(30);
         doc.text(`${wall.name} — ${WALL_TYPE_LABELS[wall.wallType]}`, 15, y); y += 5;
         doc.setFont('helvetica', 'normal');
-        doc.text(`Length: ${wall.length.toFixed(1)}m | Min Height: ${wall.minHeight}m | Max Height: ${wall.maxHeight}m`, 20, y); y += 5;
-        doc.text(`Offset from dwelling: ${wall.offsetFromDwelling}m (approx) | Offset from boundary: ${wall.offsetFromBoundary}m (approx)`, 20, y); y += 5;
+        doc.setFontSize(9);
+        doc.text(`Length: ${wall.length.toFixed(1)}m | Min Height: ${wall.minHeight}m | Max Height: ${wall.maxHeight}m`, 20, y); y += 4.5;
         doc.text(`Surcharge: ${wall.hasSurcharge ? 'Yes' : 'No'} | Fence above: ${wall.hasFenceAbove ? 'Yes' : 'No'} | Drainage: ${wall.hasDrainageRequired ? 'Yes' : 'No'}`, 20, y); y += 5;
-        if (wall.notes) { doc.text(`Notes: ${wall.notes}`, 20, y); y += 5; }
-        y += 3;
+        if (wall.notes) { doc.text(`Notes: ${wall.notes}`, 20, y); y += 4.5; }
+        y += 2;
 
-        // Materials
+        drawTableHeader();
+
         const materials = estimateMaterials(wall);
-        materials.forEach(m => {
-          doc.text(`  • ${m.item}: ${m.qtyWithWastage} ${m.unit} (incl. ${m.wastagePercent}% wastage)`, 20, y);
-          y += 4;
-        });
-        y += 4;
+        let wallSubtotal = 0;
 
-        if (y > 260) { doc.addPage(); addWatermark(); y = 20; }
+        materials.forEach((m, i) => {
+          ensureSpace(rowH + 2);
+          if (i % 2 === 0) {
+            doc.setFillColor(250, 250, 251);
+            doc.rect(15, y - 1.5, rightMargin - 15, rowH, 'F');
+          }
+          drawMaterialIcon(doc, m.iconKey, colX.icon - 11, y - 0.5, 10);
+          doc.setTextColor(30);
+          doc.setFontSize(8.5);
+          const itemLines = doc.splitTextToSize(m.item, colX.qty - colX.item - 4);
+          doc.text(itemLines.slice(0, 2), colX.item, y + 3);
+          doc.text(m.qtyWithWastage, colX.qty, y + 3, { align: 'right' });
+          doc.text(m.unit, colX.unit, y + 3);
+          if (m.unitPrice !== undefined) {
+            doc.text(fmt(m.unitPrice), colX.unitPrice, y + 3, { align: 'right' });
+          } else {
+            doc.setTextColor(140);
+            doc.text('—', colX.unitPrice, y + 3, { align: 'right' });
+            doc.setTextColor(30);
+          }
+          if (m.totalPrice !== undefined) {
+            doc.setFont('helvetica', 'bold');
+            doc.text(fmt(m.totalPrice), colX.total, y + 3, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
+            wallSubtotal += m.totalPrice;
+          } else {
+            doc.setTextColor(140);
+            doc.text('—', colX.total, y + 3, { align: 'right' });
+            doc.setTextColor(30);
+          }
+          doc.setFontSize(7);
+          doc.setTextColor(120);
+          doc.text(`incl. ${m.wastagePercent}% wastage`, colX.item, y + 7.5);
+          doc.setFontSize(8.5);
+          doc.setTextColor(30);
+          y += rowH;
+        });
+
+        ensureSpace(10);
+        doc.setDrawColor(180);
+        doc.line(15, y, rightMargin, y);
+        y += 5;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(`${wall.name} subtotal (materials, indicative)`, colX.item, y);
+        doc.text(fmt(wallSubtotal), colX.total, y, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        y += 8;
+        grandTotal += wallSubtotal;
+
+        if (wIdx < project.walls.length - 1) ensureSpace(30);
       });
+
+      ensureSpace(20);
+      doc.setFillColor(45, 55, 72);
+      doc.rect(15, y, rightMargin - 15, 10, 'F');
+      doc.setTextColor(255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.text('PROJECT MATERIALS TOTAL (indicative, excl. labour & GST)', 18, y + 6.5);
+      doc.text(fmt(grandTotal), rightMargin - 3, y + 6.5, { align: 'right' });
+      y += 14;
+      doc.setTextColor(30);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.text('Prices are indicative material-only estimates and exclude delivery, labour, plant hire, GST and engineering fees.', 15, y);
+      y += 8;
 
       // Disclaimer page
       doc.addPage();
