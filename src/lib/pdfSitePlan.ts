@@ -191,7 +191,10 @@ function drawTitleBlock(
   doc.setFontSize(4); doc.setFont(FONT, 'normal');
   doc.text('CLIENT', tbX + 3, cy); cy += 3;
   doc.setFontSize(6); doc.setFont(FONT, 'bold');
-  doc.text((project.details.clientName || 'N/A').toUpperCase(), tbX + 3, cy);
+  const clientDisplay = project.details.isBuilder && project.details.companyName
+    ? project.details.companyName
+    : project.details.clientName;
+  doc.text((clientDisplay || 'N/A').toUpperCase(), tbX + 3, cy);
   cy += 4;
   doc.line(tbX, cy, tbX + TB_WIDTH, cy);
 
@@ -748,7 +751,10 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
   const drawingAreaLeft = BORDER_INNER + 5;
   const drawingAreaRight = A3_W - BORDER_INNER - TB_WIDTH - 5;
   const totalSheets = 1 + project.walls.length; // 1 site plan + 1 per wall
-  const drawingNoBase = `OB-${project.details.clientName?.replace(/\s+/g, '').substring(0, 6).toUpperCase() || 'XXXXX'}`;
+  const drawingNoSource = (project.details.isBuilder && project.details.companyName)
+    ? project.details.companyName
+    : project.details.clientName;
+  const drawingNoBase = `OB-${drawingNoSource?.replace(/\s+/g, '').substring(0, 6).toUpperCase() || 'XXXXX'}`;
 
   // ═══ PAGE 1: SITE PLAN ═══════════════════════════════════
   drawBorder(doc);
@@ -845,5 +851,8 @@ export async function generateEngineeringSitePlan(project: ProjectState, googleM
     });
   });
 
-  doc.save(`concept-site-plan-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.pdf`);
+  const fileSource = (project.details.isBuilder && project.details.companyName)
+    ? project.details.companyName
+    : project.details.clientName;
+  doc.save(`concept-site-plan-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`);
 }
