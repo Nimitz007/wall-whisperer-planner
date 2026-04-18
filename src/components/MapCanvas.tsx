@@ -137,7 +137,15 @@ const MapCanvas = ({
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     map.setMapTypeId('hybrid');
-  }, []);
+    if (center) {
+      map.setCenter({ lat: center[1], lng: center[0] });
+      map.setZoom(20);
+      lastCenterRef.current = `${center[0]},${center[1]}`;
+    } else {
+      map.setCenter({ lat: -25.2744, lng: 133.7751 });
+      map.setZoom(4);
+    }
+  }, [center]);
 
   const lastCenterRef = useRef<string | null>(null);
   useEffect(() => {
