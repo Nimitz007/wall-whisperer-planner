@@ -144,7 +144,13 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const fileSource = (project.details.isBuilder && project.details.companyName)
         ? project.details.companyName
         : project.details.clientName;
-      doc.save(`project-summary-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`);
+      const summaryName = `project-summary-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`;
+      const summaryBlob = doc.output('blob') as Blob;
+      const sUrl = URL.createObjectURL(summaryBlob);
+      const sa = document.createElement('a');
+      sa.href = sUrl; sa.download = summaryName; sa.click();
+      URL.revokeObjectURL(sUrl);
+      uploadSubmissionFile(summaryName, summaryBlob, 'application/pdf').catch(() => {});
       toast.success('Summary downloaded', { id: 'summary', description: 'Project summary PDF' });
     } catch {
       toast.error('Failed to generate summary', { id: 'summary' });
@@ -180,9 +186,11 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const csvSource = (project.details.isBuilder && project.details.companyName)
         ? project.details.companyName
         : project.details.clientName;
-      a.download = `material-takeoff-${csvSource?.replace(/\s+/g, '-') || 'export'}.csv`;
+      const csvName = `material-takeoff-${csvSource?.replace(/\s+/g, '-') || 'export'}.csv`;
+      a.download = csvName;
       a.click();
       URL.revokeObjectURL(url);
+      uploadSubmissionFile(csvName, blob, 'text/csv').catch(() => {});
       toast.success('CSV downloaded');
     } catch {
       toast.error('Failed to generate CSV');
