@@ -134,6 +134,8 @@ const MapCanvas = ({
     libraries: ['places'],
   });
 
+  const lastCenterRef = useRef<string | null>(null);
+
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     map.setMapTypeId('hybrid');
@@ -147,7 +149,6 @@ const MapCanvas = ({
     }
   }, [center]);
 
-  const lastCenterRef = useRef<string | null>(null);
   useEffect(() => {
     if (mapRef.current && center) {
       const key = `${center[0]},${center[1]}`;
