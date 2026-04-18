@@ -37,7 +37,7 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
             "peer w-full h-10 px-3 py-2 text-base md:text-sm bg-background border rounded-lg outline-none transition-all duration-200",
             "placeholder-transparent",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            "ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+            "focus:border-primary",
             isFocused ? "border-primary" : "border-input",
             className
           )}

@@ -134,12 +134,21 @@ const MapCanvas = ({
     libraries: ['places'],
   });
 
+  const lastCenterRef = useRef<string | null>(null);
+
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
     map.setMapTypeId('hybrid');
-  }, []);
+    if (center) {
+      map.setCenter({ lat: center[1], lng: center[0] });
+      map.setZoom(20);
+      lastCenterRef.current = `${center[0]},${center[1]}`;
+    } else {
+      map.setCenter({ lat: -25.2744, lng: 133.7751 });
+      map.setZoom(4);
+    }
+  }, [center]);
 
-  const lastCenterRef = useRef<string | null>(null);
   useEffect(() => {
     if (mapRef.current && center) {
       const key = `${center[0]},${center[1]}`;
@@ -404,8 +413,6 @@ const MapCanvas = ({
       <div className="h-[400px] w-full overflow-hidden rounded-2xl shadow-card sm:h-[500px] lg:h-[700px]">
         <GoogleMap
           mapContainerStyle={containerStyle}
-          center={initialCenter}
-          zoom={initialZoom}
           onLoad={onMapLoad}
           onClick={handleMapClick}
           onIdle={handleMapIdle}
