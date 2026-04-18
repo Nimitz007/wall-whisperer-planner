@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import AddressSearch from "./AddressSearch";
 import MapCanvas from "./MapCanvas";
 import WallEditorPanel from "./WallEditorPanel";
-import ProjectSummary from "./ProjectSummary";
 import PaymentGate from "./PaymentGate";
 import ExportGenerator from "./ExportGenerator";
+import ProductSelector from "./ProductSelector";
 import { ProjectState, WallSegment, WallPoint } from "@/lib/types";
 import { calculatePolylineLength, generateWallName } from "@/lib/wallCalculations";
 import { useAutoSaveSubmission } from "@/hooks/useAutoSaveSubmission";
@@ -25,7 +25,7 @@ import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 const STEPS = [
   { label: "Property", icon: MapPin },
   { label: "Draw", icon: Pencil },
-  { label: "Summary", icon: BarChart3 },
+  { label: "Materials", icon: BarChart3 },
   { label: "Export", icon: CreditCard },
 ];
 
@@ -438,9 +438,43 @@ const PlannerSection = () => {
 
 
                 {project.currentStep === 2 && (
-                  <div className="space-y-4">
-                    <h3 className="font-display text-lg font-semibold text-foreground">Summary</h3>
-                    <ProjectSummary project={project} />
+                  <div className="space-y-5">
+                    <div>
+                      <h3 className="font-display text-lg font-semibold text-foreground">Material Selection</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Pick a product for each wall. Pricing updates live based on length & height.
+                      </p>
+                    </div>
+
+                    {project.walls.length === 0 && (
+                      <p className="text-sm text-muted-foreground">Draw at least one wall to select materials.</p>
+                    )}
+
+                    {project.walls.map((wall) => (
+                      <div key={wall.id} className="space-y-2 rounded-lg border border-border bg-card p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-foreground">{wall.name}</p>
+                          <span className="text-xs text-muted-foreground">
+                            {wall.length.toFixed(1)}m · H {wall.maxHeight}m
+                          </span>
+                        </div>
+                        <ProductSelector
+                          wall={wall}
+                          onSelect={(p) =>
+                            updateWall({
+                              ...wall,
+                              selectedProductSku: p.sku ?? undefined,
+                              selectedProductName: p.product_name,
+                              selectedProductPrice: Number(p.price),
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
+
+                    <p className="rounded-md border border-dashed border-border bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                      A detailed project summary PDF is available in the next step.
+                    </p>
                   </div>
                 )}
 
