@@ -4,9 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Ruler, AlertTriangle, Package } from 'lucide-react';
-import ProductSelector from './ProductSelector';
-import { Product } from '@/lib/products';
+import { Ruler, AlertTriangle } from 'lucide-react';
 
 interface WallEditorPanelProps {
   wall: WallSegment;
@@ -58,35 +56,6 @@ const WallEditorPanel = ({ wall, onChange }: WallEditorPanelProps) => {
           </SelectContent>
         </Select>
       </div>
-
-      {wall.wallType === 'concrete-sleeper' && (
-        <>
-          <Separator />
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4 text-primary" />
-              <Label className="text-sm font-medium text-foreground">Sleeper Selection</Label>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Choose the sleeper finish for this wall. Estimated unit count and price range update with wall length and height.
-            </p>
-            <ProductSelector
-              wall={wall}
-              onSelect={(p: Product) => update({
-                selectedProductSku: p.sku ?? undefined,
-                selectedProductName: `${p.product_name} – ${p.colour ?? ''} ${p.size ?? ''}`.trim(),
-                selectedProductPrice: Number(p.price),
-              })}
-            />
-            {wall.selectedProductName && (
-              <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-xs">
-                <p className="font-medium text-foreground">Selected:</p>
-                <p className="text-muted-foreground">{wall.selectedProductName}</p>
-              </div>
-            )}
-          </div>
-        </>
-      )}
 
       <Separator />
 
