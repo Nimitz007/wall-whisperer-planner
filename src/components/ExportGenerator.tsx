@@ -75,11 +75,17 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       };
 
       addSection('Client & Project');
-      doc.text(`Client: ${project.details.clientName || 'N/A'}`, 15, y); y += 5;
+      const clientLabel = project.details.isBuilder ? 'Builder' : 'Client';
+      const clientDisplay = project.details.isBuilder && project.details.companyName
+        ? project.details.companyName
+        : project.details.clientName;
+      doc.text(`${clientLabel}: ${clientDisplay || 'N/A'}`, 15, y); y += 5;
+      if (project.details.isBuilder && project.details.clientName) {
+        doc.text(`Contact: ${project.details.clientName}`, 15, y); y += 5;
+      }
       doc.text(`Address: ${project.details.address || 'N/A'}`, 15, y); y += 5;
       doc.text(`Email: ${project.details.clientEmail || 'N/A'}`, 15, y); y += 5;
       doc.text(`Phone: ${project.details.clientPhone || 'N/A'}`, 15, y); y += 5;
-      if (project.details.isBuilder) { doc.text(`Company: ${project.details.companyName || 'N/A'}`, 15, y); y += 5; }
       doc.text(`Date: ${new Date().toLocaleDateString('en-AU')}`, 15, y); y += 10;
 
       addSection('Wall Summary');
@@ -127,7 +133,10 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       let dy = 42;
       disclaimer.forEach(line => { doc.text(line, 15, dy); dy += 7; });
 
-      doc.save(`project-summary-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.pdf`);
+      const fileSource = (project.details.isBuilder && project.details.companyName)
+        ? project.details.companyName
+        : project.details.clientName;
+      doc.save(`project-summary-${fileSource?.replace(/\s+/g, '-') || 'export'}.pdf`);
       toast.success('Summary downloaded', { id: 'summary', description: 'Project summary PDF' });
     } catch {
       toast.error('Failed to generate summary', { id: 'summary' });
@@ -160,7 +169,10 @@ const ExportGenerator = ({ project, googleMapsApiKey }: ExportGeneratorProps) =>
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `material-takeoff-${project.details.clientName?.replace(/\s+/g, '-') || 'export'}.csv`;
+      const csvSource = (project.details.isBuilder && project.details.companyName)
+        ? project.details.companyName
+        : project.details.clientName;
+      a.download = `material-takeoff-${csvSource?.replace(/\s+/g, '-') || 'export'}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('CSV downloaded');
