@@ -203,6 +203,8 @@ const SubmissionDetail = () => {
         </div>
 
         <div className="space-y-6">
+          <SubmissionFilesPanel submissionId={sub.id} refreshKey={filesKey} />
+
           <Card>
             <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
             <CardContent className="space-y-3">
