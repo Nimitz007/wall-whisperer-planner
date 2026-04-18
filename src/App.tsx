@@ -13,6 +13,7 @@ import ProtectedAdminRoute from "./components/admin/ProtectedAdminRoute";
 import SubmissionsList from "./pages/admin/SubmissionsList";
 import SubmissionDetail from "./pages/admin/SubmissionDetail";
 import TeamPage from "./pages/admin/TeamPage";
+import ProductsPage from "./pages/admin/ProductsPage";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
                 <Route index element={<SubmissionsList />} />
                 <Route path="submissions/:id" element={<SubmissionDetail />} />
                 <Route path="team" element={<TeamPage />} />
+                <Route path="products" element={<ProductsPage />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

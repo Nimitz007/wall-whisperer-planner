@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { LayoutList, Users, LogOut, ExternalLink } from 'lucide-react';
+import { LayoutList, Users, LogOut, ExternalLink, Package } from 'lucide-react';
 
 const AdminLayout = () => {
   const { user, signOut } = useAuth();
@@ -22,6 +22,9 @@ const AdminLayout = () => {
         <nav className="p-3 space-y-1 flex-1">
           <NavLink to="/admin" end className={linkCls}>
             <LayoutList className="h-4 w-4" /> Submissions
+          </NavLink>
+          <NavLink to="/admin/products" className={linkCls}>
+            <Package className="h-4 w-4" /> Products
           </NavLink>
           <NavLink to="/admin/team" className={linkCls}>
             <Users className="h-4 w-4" /> Team

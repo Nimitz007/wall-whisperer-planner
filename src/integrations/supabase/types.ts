@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      products: {
+        Row: {
+          active: boolean
+          category: string
+          colour: string | null
+          created_at: string
+          display_order: number
+          id: string
+          image_filename: string | null
+          image_path: string | null
+          is_selectable: boolean
+          price: number
+          product_name: string
+          size: string | null
+          sku: string | null
+          updated_at: string
+          wall_type: string | null
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          colour?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_filename?: string | null
+          image_path?: string | null
+          is_selectable?: boolean
+          price?: number
+          product_name: string
+          size?: string | null
+          sku?: string | null
+          updated_at?: string
+          wall_type?: string | null
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          colour?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_filename?: string | null
+          image_path?: string | null
+          is_selectable?: boolean
+          price?: number
+          product_name?: string
+          size?: string | null
+          sku?: string | null
+          updated_at?: string
+          wall_type?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
