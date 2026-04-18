@@ -59,6 +59,7 @@ const PlannerSection = () => {
   });
 
   const [activeWallId, setActiveWallId] = useState<string | null>(null);
+  useAutoSaveSubmission(project);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPoints, setCurrentPoints] = useState<WallPoint[]>([]);
   const [triedNext, setTriedNext] = useState(false);
