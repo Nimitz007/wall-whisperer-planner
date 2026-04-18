@@ -9,6 +9,7 @@ import PaymentGate from "./PaymentGate";
 import ExportGenerator from "./ExportGenerator";
 import { ProjectState, WallSegment, WallPoint } from "@/lib/types";
 import { calculatePolylineLength, generateWallName } from "@/lib/wallCalculations";
+import { useAutoSaveSubmission } from "@/hooks/useAutoSaveSubmission";
 import { v4Fallback } from "@/lib/idUtils";
 import { Input } from "@/components/ui/input";
 import { FloatingInput } from "@/components/ui/floating-input";
