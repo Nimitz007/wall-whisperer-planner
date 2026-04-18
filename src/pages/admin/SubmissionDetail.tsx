@@ -13,6 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
 import { loadBranding } from '@/lib/branding';
+import { uploadSubmissionFile } from '@/lib/submissionFiles';
+import SubmissionFilesPanel from '@/components/admin/SubmissionFilesPanel';
 
 const STATUSES = ['new','contacted','quoted','engineering','delivered','won','lost'] as const;
 
@@ -87,11 +89,19 @@ const SubmissionDetail = () => {
   };
 
   const regeneratePdf = async () => {
-    if (!sub?.project_data) return;
+    if (!sub?.project_data || !id) return;
     setExporting(true);
     try {
-      await generateEngineeringSitePlan(sub.project_data as ProjectState, undefined, loadBranding());
-      toast.success('Site plan regenerated');
+      const result = await generateEngineeringSitePlan(sub.project_data as ProjectState, undefined, loadBranding(), { returnBlob: true });
+      if (result) {
+        const url = URL.createObjectURL(result.blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = result.filename; a.click();
+        URL.revokeObjectURL(url);
+        await uploadSubmissionFile(result.filename, result.blob, 'application/pdf', id);
+        setFilesKey(k => k + 1);
+      }
+      toast.success('Site plan regenerated and archived');
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed');
     } finally { setExporting(false); }
