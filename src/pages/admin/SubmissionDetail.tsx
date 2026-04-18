@@ -7,12 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Mail, Phone, MapPin, FileDown, Loader2, Send, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, FileDown, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { ProjectState, WALL_TYPE_LABELS } from '@/lib/types';
 import { generateEngineeringSitePlan } from '@/lib/pdfSitePlan';
-import { defaultBranding } from '@/lib/branding';
+import { loadBranding } from '@/lib/branding';
 
 const STATUSES = ['new','contacted','quoted','engineering','delivered','won','lost'] as const;
 
@@ -90,7 +90,7 @@ const SubmissionDetail = () => {
     if (!sub?.project_data) return;
     setExporting(true);
     try {
-      await generateEngineeringSitePlan(sub.project_data as ProjectState, undefined, defaultBranding);
+      await generateEngineeringSitePlan(sub.project_data as ProjectState, undefined, loadBranding());
       toast.success('Site plan regenerated');
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed');
